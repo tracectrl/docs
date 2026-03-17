@@ -1,0 +1,100 @@
+---
+title: "Context Propagation"
+description: "Correlate traces across multiple services and agents"
+---
+
+## Overview
+
+When your agents span multiple processes or services (e.g., Agent A calls Agent B via HTTP), you need to propagate the trace context so all spans appear in the same trace.
+
+TraceCtrl provides two helpers that wrap OpenTelemetry's W3C Trace Context propagation:
+
+## Injecting Context (Outgoing Requests)
+
+On the calling side, inject the `traceparent` header into your outgoing request:
+
+```python
+from tracectrl.context import inject_trace_headers
+
+headers = inject_trace_headers()
+# headers now contains {"traceparent": "00-abc123...-def456...-01"}
+
+requests.post("http://agent-b/api", headers=headers, json=payload)
+```
+
+You can also inject into an existing headers dict:
+
+```python
+headers = {"Content-Type": "application/json", "Authorization": "Bearer ..."}
+inject_trace_headers(headers)
+# traceparent is added to the existing dict
+```
+
+## Extracting Context (Incoming Requests)
+
+On the receiving side, extract the trace context from incoming headers:
+
+```python
+from tracectrl.context import extract_trace_headers
+
+# In your FastAPI/Flask/Django handler:
+extract_trace_headers(dict(request.headers))
+# All spans created after this point belong to the caller's trace
+```
+
+## API Reference
+
+### `inject_trace_headers(headers: dict | None = None) → dict`
+
+Injects W3C `traceparent` (and optionally `tracestate`) into the given headers dict. If no dict is provided, creates and returns a new one.
+
+### `extract_trace_headers(headers: dict) → Context`
+
+Extracts the trace context from incoming headers and activates it. Returns the OpenTelemetry `Context` object. All subsequent spans in this execution context will be children of the incoming trace.
+
+## Full Example: Two-Service Agent
+
+```python title="agent_a.py"
+import tracectrl
+tracectrl.configure(service_name="agent-a")
+
+from tracectrl.instrumentation.langchain import LangChainInstrumentor
+LangChainInstrumentor().instrument()
+
+from tracectrl.context import inject_trace_headers
+from tracectrl.session import new_session, current_session_id
+import requests
+
+new_session()
+
+# Call Agent B with trace context
+headers = inject_trace_headers()
+headers["X-TraceCtrl-Session"] = current_session_id()
+response = requests.post("http://localhost:5001/process", headers=headers, json={"task": "research"})
+```
+
+```python title="agent_b.py"
+import tracectrl
+tracectrl.configure(service_name="agent-b")
+
+from tracectrl.instrumentation.crewai import CrewAIInstrumentor
+CrewAIInstrumentor().instrument()
+
+from tracectrl.context import extract_trace_headers
+from tracectrl.session import set_session_id
+from fastapi import FastAPI, Request
+
+app = FastAPI()
+
+@app.post("/process")
+async def process(request: Request):
+    extract_trace_headers(dict(request.headers))
+    set_session_id(request.headers.get("X-TraceCtrl-Session", ""))
+
+    # All CrewAI spans are now part of Agent A's trace
+    crew.kickoff()
+```
+
+<Note>
+  This uses the standard W3C Trace Context specification (`traceparent` header). It works with any OpenTelemetry-compatible service, not just TraceCtrl agents.
+</Note>

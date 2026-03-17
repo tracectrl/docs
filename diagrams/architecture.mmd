@@ -1,0 +1,91 @@
+%%{init: {
+  "theme": "dark",
+  "flowchart": { "nodeSpacing": 40, "rankSpacing": 50, "htmlLabels": true },
+  "themeVariables": {
+    "primaryColor": "#1a1a2e",
+    "primaryBorderColor": "#FC0404",
+    "primaryTextColor": "#F5F5F5",
+    "lineColor": "#FC0404",
+    "textColor": "#F5F5F5",
+    "mainBkg": "#1a1a2e",
+    "nodeBorder": "#FC0404",
+    "clusterBkg": "#111122",
+    "clusterBorder": "#FC0404",
+    "edgeLabelBackground": "#0d0d1a",
+    "fontSize": "13px",
+    "fontFamily": "JetBrains Mono, monospace"
+  }
+}}%%
+
+graph TD
+    subgraph AGENT_LAYER["  Agent Layer  "]
+        SDK["tracectrl.configure()"]
+        INST["Framework Instrumentor"]
+        PROC["TraceCtrlSpanProcessor"]
+        FRAME["LangChain · CrewAI · Agno<br/>Google ADK · Strands"]
+        ENRICH["tool categorization<br/>agent identity<br/>session binding"]
+
+        SDK --> INST
+        INST --> PROC
+        INST -.- FRAME
+        PROC -.- ENRICH
+    end
+
+    subgraph COLLECTION_LAYER["  Collection Layer  "]
+        OTEL["OTel Collector<br/>gRPC :4317 · HTTP :4318"]
+    end
+
+    subgraph STORAGE_LAYER["  Storage Layer  "]
+        CH1[("otel_traces")]
+        CH2[("agent_inventory")]
+        CH3[("topology_edges")]
+        CH4[("pipeline_state")]
+    end
+
+    subgraph ENGINE_LAYER["  Intelligence Engine · FastAPI :8000  "]
+        PIPE["Pipeline ⏱ 60s<br/>Fetch → Inventory →<br/>Topology → Watermark"]
+        EP1["/api/v1/topology"]
+        EP2["/api/v1/sessions"]
+        EP3["/api/v1/risk"]
+    end
+
+    subgraph DASH_LAYER["  Dashboard · React + Vite :3000  "]
+        P1["Topology<br/>Graph"]
+        P2["Sessions<br/>Explorer"]
+        P3["Risk<br/>Dashboard"]
+        P4["Attack<br/>Paths"]
+    end
+
+    PROC -->|"OTLP gRPC"| OTEL
+    OTEL --> CH1
+    CH1 & CH2 & CH3 --> PIPE
+    PIPE --> CH2
+    PIPE --> CH3
+    EP1 --> P1
+    EP2 --> P2
+    EP3 --> P3
+    EP3 --> P4
+
+    style AGENT_LAYER fill:#111122,stroke:#FC0404,stroke-width:2px,color:#F5F5F5
+    style COLLECTION_LAYER fill:#111122,stroke:#FC0404,stroke-width:2px,color:#F5F5F5
+    style STORAGE_LAYER fill:#111122,stroke:#FC0404,stroke-width:2px,color:#F5F5F5
+    style ENGINE_LAYER fill:#111122,stroke:#FC0404,stroke-width:2px,color:#F5F5F5
+    style DASH_LAYER fill:#111122,stroke:#FC0404,stroke-width:2px,color:#F5F5F5
+    style SDK fill:#2a2a3e,stroke:#FC0404,stroke-width:1px,color:#F5F5F5
+    style INST fill:#2a2a3e,stroke:#FC0404,stroke-width:1px,color:#F5F5F5
+    style PROC fill:#2a2a3e,stroke:#FC0404,stroke-width:1px,color:#F5F5F5
+    style FRAME fill:#1a1a2e,stroke:#555,stroke-width:1px,color:#888
+    style ENRICH fill:#1a1a2e,stroke:#555,stroke-width:1px,color:#888
+    style OTEL fill:#1e3a5f,stroke:#FC0404,stroke-width:1px,color:#F5F5F5
+    style CH1 fill:#1e3a5f,stroke:#FC0404,stroke-width:1px,color:#F5F5F5
+    style CH2 fill:#1e3a5f,stroke:#FC0404,stroke-width:1px,color:#F5F5F5
+    style CH3 fill:#1e3a5f,stroke:#FC0404,stroke-width:1px,color:#F5F5F5
+    style CH4 fill:#1e3a5f,stroke:#555,stroke-width:1px,color:#888
+    style PIPE fill:#2a2a3e,stroke:#FC0404,stroke-width:1px,color:#F5F5F5
+    style EP1 fill:#2a2a3e,stroke:#FC0404,stroke-width:1px,color:#F5F5F5
+    style EP2 fill:#2a2a3e,stroke:#FC0404,stroke-width:1px,color:#F5F5F5
+    style EP3 fill:#2a2a3e,stroke:#FC0404,stroke-width:1px,color:#F5F5F5
+    style P1 fill:#1e3a5f,stroke:#FC0404,stroke-width:1px,color:#F5F5F5
+    style P2 fill:#1e3a5f,stroke:#FC0404,stroke-width:1px,color:#F5F5F5
+    style P3 fill:#1e3a5f,stroke:#FC0404,stroke-width:1px,color:#F5F5F5
+    style P4 fill:#1e3a5f,stroke:#FC0404,stroke-width:1px,color:#F5F5F5

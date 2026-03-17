@@ -1,0 +1,75 @@
+---
+title: "Get Topology Graph"
+api: "GET http://localhost:8000/api/v1/topology/graph"
+description: "Returns the full agent-tool topology graph"
+---
+
+Returns all agent nodes, tool nodes, and their edges. Used by the dashboard's Topology page.
+
+### Response
+
+<ResponseField name="nodes" type="array">
+  Array of node objects.
+  <Expandable>
+    <ResponseField name="id" type="string">Unique node identifier</ResponseField>
+    <ResponseField name="type" type="string">`agent` or `tool`</ResponseField>
+    <ResponseField name="label" type="string">Display name</ResponseField>
+    <ResponseField name="metadata" type="object">
+      For agents: `framework`, `role`, `model`, `tools_observed`, `maturity`.
+      For tools: `category`.
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<ResponseField name="edges" type="array">
+  Array of edge objects.
+  <Expandable>
+    <ResponseField name="id" type="string">Edge identifier</ResponseField>
+    <ResponseField name="source" type="string">Source node ID</ResponseField>
+    <ResponseField name="target" type="string">Target node ID</ResponseField>
+    <ResponseField name="type" type="string">`agent_to_agent` or `agent_to_tool`</ResponseField>
+    <ResponseField name="channel" type="string">For agent-to-agent: `function_call` or `team_member`</ResponseField>
+    <ResponseField name="observation_count" type="integer">Times this connection was observed</ResponseField>
+    <ResponseField name="call_count" type="integer">For tool edges: total call count</ResponseField>
+    <ResponseField name="confidence" type="string">`LOW`, `MEDIUM`, or `HIGH`</ResponseField>
+  </Expandable>
+</ResponseField>
+
+<ResponseExample>
+```json 200
+{
+  "nodes": [
+    {
+      "id": "researcher-agent",
+      "type": "agent",
+      "label": "Researcher",
+      "metadata": {
+        "framework": "langchain",
+        "role": "Research and analysis",
+        "model": "gpt-4o",
+        "tools_observed": ["search_documents", "fetch_url"],
+        "maturity": "MATURE"
+      }
+    },
+    {
+      "id": "tool:search_documents",
+      "type": "tool",
+      "label": "search_documents",
+      "metadata": {
+        "category": "memory_read"
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "abc123",
+      "source": "researcher-agent",
+      "target": "tool:search_documents",
+      "type": "agent_to_tool",
+      "call_count": 42,
+      "tool_category": "memory_read"
+    }
+  ]
+}
+```
+</ResponseExample>

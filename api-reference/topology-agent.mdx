@@ -1,0 +1,45 @@
+---
+title: "Get Agent Detail"
+api: "GET http://localhost:8000/api/v1/topology/agents/{agent_id}"
+description: "Returns details for a specific agent"
+---
+
+### Path Parameters
+
+<ParamField path="agent_id" type="string" required>
+  The unique agent identifier (e.g., `researcher-agent`).
+</ParamField>
+
+### Response
+
+<ResponseField name="agent_id" type="string">Unique identifier</ResponseField>
+<ResponseField name="name" type="string">Human-readable name</ResponseField>
+<ResponseField name="framework" type="string">Detected framework</ResponseField>
+<ResponseField name="role" type="string">Agent role/purpose</ResponseField>
+<ResponseField name="model" type="string">LLM model used</ResponseField>
+<ResponseField name="tools_observed" type="array">List of tool names this agent has used</ResponseField>
+<ResponseField name="system_prompt_hash" type="string">SHA-256 hash of the system prompt (first 16 hex chars)</ResponseField>
+<ResponseField name="run_count" type="integer">Number of distinct runs</ResponseField>
+<ResponseField name="observation_count" type="integer">Total spans observed</ResponseField>
+<ResponseField name="maturity" type="string">`LEARNING` (< 10 observations) or `MATURE` (>= 10)</ResponseField>
+<ResponseField name="first_seen" type="string">ISO-8601 timestamp</ResponseField>
+<ResponseField name="last_seen" type="string">ISO-8601 timestamp</ResponseField>
+
+<ResponseExample>
+```json 200
+{
+  "agent_id": "researcher-agent",
+  "name": "Researcher",
+  "framework": "langchain",
+  "role": "Research and analysis",
+  "model": "gpt-4o",
+  "tools_observed": ["search_documents", "fetch_url", "write_file"],
+  "system_prompt_hash": "a1b2c3d4e5f67890",
+  "run_count": 15,
+  "observation_count": 234,
+  "maturity": "MATURE",
+  "first_seen": "2026-03-15T10:30:00Z",
+  "last_seen": "2026-03-17T14:22:00Z"
+}
+```
+</ResponseExample>

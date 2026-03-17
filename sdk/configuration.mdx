@@ -1,0 +1,87 @@
+---
+title: "Configuration"
+description: "Configure the TraceCtrl SDK via code or environment variables"
+---
+
+## Programmatic Configuration
+
+Call `configure()` before calling any instrumentor's `.instrument()` method.
+
+```python
+import tracectrl
+
+tracectrl.configure(
+    endpoint="http://localhost:4317",
+    service_name="my-agent-service",
+    api_key="your-api-key",        # optional
+    fail_silently=True,             # optional, default: True
+)
+```
+
+### Parameters
+
+<ParamField path="endpoint" type="string">
+  The OTel Collector gRPC endpoint. Defaults to `http://localhost:4317`. Use `http://otel-collector:4317` when your agent runs inside Docker.
+</ParamField>
+
+<ParamField path="service_name" type="string">
+  The service name attached to all spans. Appears in the `service.name` resource attribute. Defaults to `tracectrl-agent`.
+</ParamField>
+
+<ParamField path="api_key" type="string">
+  Optional API key for authenticated collectors. Sent as a `Bearer` token in the `Authorization` header.
+</ParamField>
+
+<ParamField path="fail_silently" type="boolean">
+  When `true`, exporter failures are logged as warnings instead of raising exceptions. Defaults to `true` — your agent never crashes because tracing fails.
+</ParamField>
+
+## Environment Variables
+
+All configuration can also be set via environment variables. Programmatic values take precedence.
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `TRACECTRL_ENDPOINT` | `http://localhost:4317` | OTel Collector gRPC endpoint |
+| `TRACECTRL_SERVICE_NAME` | `tracectrl-agent` | Service name for spans |
+| `TRACECTRL_API_KEY` | — | Bearer token for authenticated collectors |
+| `TRACECTRL_BATCH_DELAY_MS` | `1000` | Batch export delay in milliseconds |
+| `TRACECTRL_MAX_BATCH_SIZE` | `512` | Maximum spans per export batch |
+| `TRACECTRL_FAIL_SILENTLY` | `true` | Suppress exporter errors |
+| `TRACECTRL_SESSION_ID` | — | Override auto-generated session ID |
+
+## Platform Environment Variables
+
+These are used by the TraceCtrl Engine and Docker stack, not the SDK:
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `CLICKHOUSE_HOST` | `localhost` | ClickHouse host (`clickhouse` in Docker) |
+| `CLICKHOUSE_PORT` | `9000` | ClickHouse native protocol port |
+| `CLICKHOUSE_DB` | `tracectrl` | ClickHouse database name |
+| `PIPELINE_INTERVAL_SECONDS` | `60` | Pipeline processing interval |
+| `VITE_ENGINE_URL` | `http://localhost:8000` | Engine API URL (baked into UI at build) |
+
+## TracerProvider
+
+The SDK lazily creates a shared `TracerProvider` with:
+- An OTLP gRPC exporter pointed at your endpoint
+- A `BatchSpanProcessor` for async export (configurable batch size and delay)
+- The `TraceCtrlSpanProcessor` for security enrichment
+
+If you need to pass a custom `TracerProvider`, you can skip `configure()` and pass it directly:
+
+```python
+from tracectrl.instrumentation.langchain import LangChainInstrumentor
+
+LangChainInstrumentor().instrument(tracer_provider=your_custom_provider)
+```
+
+<Warning>
+  When using a custom TracerProvider, you must manually add the `TraceCtrlSpanProcessor` to get security enrichment:
+
+  ```python
+  from tracectrl.processor import TraceCtrlSpanProcessor
+  your_custom_provider.add_span_processor(TraceCtrlSpanProcessor())
+  ```
+</Warning>

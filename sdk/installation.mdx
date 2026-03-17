@@ -1,0 +1,68 @@
+---
+title: "Installation"
+description: "Install the TraceCtrl SDK and framework instrumentors"
+---
+
+## Core SDK
+
+The core package is required for all instrumentors.
+
+```bash
+pip install -e ./sdk/tracectrl
+```
+
+## Framework Instrumentors
+
+Install the instrumentor that matches your agent framework. You only need one.
+
+<CodeGroup>
+```bash LangChain / LangGraph
+pip install -e ./sdk/tracectrl-instrumentation-langchain
+```
+
+```bash CrewAI
+pip install -e ./sdk/tracectrl-instrumentation-crewai
+```
+
+```bash Agno
+pip install -e ./sdk/tracectrl-instrumentation-agno
+```
+
+```bash Google ADK
+pip install -e ./sdk/tracectrl-instrumentation-google-adk
+```
+
+```bash AWS Strands
+pip install -e ./sdk/tracectrl-instrumentation-strands
+```
+</CodeGroup>
+
+## Dependencies
+
+Each instrumentor depends on:
+- `tracectrl >= 0.1.0` (core SDK)
+- The corresponding `openinference-instrumentation-*` package (installed automatically)
+
+The core SDK depends on:
+- `opentelemetry-sdk`
+- `opentelemetry-exporter-otlp-proto-grpc`
+
+## Requirements
+
+- Python 3.10 or later
+- An OpenTelemetry Collector endpoint (included in the Docker Compose stack)
+
+## Namespace Packages
+
+TraceCtrl uses [PEP 420 namespace packages](https://peps.python.org/pep-0420/) — all instrumentors share the `tracectrl.*` namespace. You can install multiple instrumentors side-by-side:
+
+```bash
+pip install -e ./sdk/tracectrl
+pip install -e ./sdk/tracectrl-instrumentation-langchain
+pip install -e ./sdk/tracectrl-instrumentation-crewai
+# Both work together without conflicts
+```
+
+<Note>
+  The SDK is currently distributed as editable installs from the monorepo. PyPI packages are planned for a future release.
+</Note>

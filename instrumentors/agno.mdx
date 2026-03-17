@@ -1,0 +1,52 @@
+---
+title: "Agno"
+description: "Instrument Agno agents with TraceCtrl"
+---
+
+## Installation
+
+```bash
+pip install -e ./sdk/tracectrl
+pip install -e ./sdk/tracectrl-instrumentation-agno
+```
+
+## Usage
+
+```python
+import tracectrl
+tracectrl.configure(service_name="my-agno-agent")
+
+from tracectrl.instrumentation.agno import AgnoInstrumentor
+AgnoInstrumentor().instrument()
+
+# Your Agno code
+from agno.agent import Agent
+
+agent = Agent(model="gpt-4o", tools=[...])
+agent.run("Analyze this document")
+```
+
+## What Gets Captured
+
+Agno provides rich agent metadata out of the box. TraceCtrl maps Agno-specific attributes:
+
+| Agno Attribute | TraceCtrl Attribute | Purpose |
+|---------------|---------------------|---------|
+| `agno.agent.id` | `tracectrl.agent.id` | Agent identity |
+| `agent.name` | `tracectrl.agent.name` | Human-readable name |
+| `agno.team.id` | `tracectrl.agent.id` (fallback) | Team-level identity |
+| `session.id` | `tracectrl.session_id` (fallback) | Agno session correlation |
+
+The `TraceCtrlSpanProcessor` automatically derives `tracectrl.agent.id` from Agno's native attributes when they're present.
+
+## API
+
+### `AgnoInstrumentor()`
+
+<ParamField path="instrument" type="method">
+  `instrument(tracer_provider=None, skip_dep_check=False)` — Registers the TraceCtrl span processor and wraps the OpenInference Agno instrumentor.
+</ParamField>
+
+<ParamField path="uninstrument" type="method">
+  `uninstrument()` — Shuts down processors and unwraps the instrumentor.
+</ParamField>

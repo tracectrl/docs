@@ -1,0 +1,32 @@
+---
+title: "List Agents"
+api: "GET http://localhost:8000/api/v1/risk/agents"
+description: "Returns all discovered agents with inventory data"
+---
+
+Returns every agent in the inventory with their observation counts, tools, maturity status, and framework detection.
+
+### Response
+
+Array of agent objects with the same fields as the [Get Agent Detail](/api-reference/topology-agent) endpoint.
+
+<ResponseExample>
+```json 200
+[
+  {
+    "agent_id": "researcher-agent",
+    "name": "Researcher",
+    "framework": "langchain",
+    "role": "Research and analysis",
+    "model": "gpt-4o",
+    "tools_observed": ["search_documents", "fetch_url"],
+    "system_prompt_hash": "a1b2c3d4e5f67890",
+    "run_count": 15,
+    "observation_count": 234,
+    "maturity": "MATURE",
+    "first_seen": "2026-03-15T10:30:00Z",
+    "last_seen": "2026-03-17T14:22:00Z"
+  }
+]
+```
+</ResponseExample>

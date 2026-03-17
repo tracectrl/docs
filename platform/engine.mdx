@@ -1,0 +1,56 @@
+---
+title: "Intelligence Engine"
+description: "FastAPI backend that processes spans into agent intelligence"
+---
+
+## Overview
+
+The TraceCtrl Engine is a FastAPI application that:
+
+1. Runs a **background pipeline** every 60 seconds to process new spans
+2. Serves a **REST API** for the dashboard and external integrations
+3. Maintains **cumulative state** in ClickHouse using ReplacingMergeTree tables
+
+## Pipeline
+
+The pipeline is scheduled via APScheduler and runs at the interval set by `PIPELINE_INTERVAL_SECONDS` (default: 60).
+
+<Steps>
+  <Step title="Fetch new spans">
+    Reads from `otel_traces` where `Timestamp > last_watermark`. Extracts 20+ attributes per span including all `tracectrl.*`, `openinference.*`, and framework-specific fields.
+  </Step>
+
+  <Step title="Update agent inventory">
+    Groups spans by `tracectrl.agent.id` and upserts agent records. Tracks cumulative `observation_count`, `run_count`, `tools_observed`, and computes maturity (`LEARNING` → `MATURE` after 10 observations).
+  </Step>
+
+  <Step title="Build topology">
+    Creates agent-to-agent edges (via `tracectrl.caller.agent_id` or parent span resolution) and agent-to-tool edges. Edges carry cumulative counts and confidence levels (`LOW` → `MEDIUM` → `HIGH`).
+  </Step>
+
+  <Step title="Advance watermark">
+    Updates `pipeline_state.last_processed_at`. Only advances on success — if the pipeline fails or finds no new spans, the watermark stays put so no data is ever skipped.
+  </Step>
+</Steps>
+
+## Configuration
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `CLICKHOUSE_HOST` | `localhost` | ClickHouse host |
+| `CLICKHOUSE_PORT` | `9000` | ClickHouse native port |
+| `CLICKHOUSE_DB` | `tracectrl` | Database name |
+| `PIPELINE_INTERVAL_SECONDS` | `60` | Pipeline cycle interval |
+
+## Running Locally
+
+```bash
+cd tracectrl
+source .venv/bin/activate
+pip install -r engine/requirements.txt
+uvicorn engine.main:app --reload --port 8000
+```
+
+<Note>
+  When running locally, ensure ClickHouse is accessible at the configured host/port and the `tracectrl` database exists with the schema from `config/schema.sql`.
+</Note>

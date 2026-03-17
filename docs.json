@@ -1,122 +1,97 @@
 {
   "$schema": "https://mintlify.com/docs.json",
-  "theme": "mint",
-  "name": "Mint Starter Kit",
+  "theme": "maple",
+  "name": "TraceCtrl",
+  "description": "Security Observability & Control for Agentic AI",
   "colors": {
-    "primary": "#16A34A",
-    "light": "#07C983",
-    "dark": "#15803D"
+    "primary": "#FC0404",
+    "light": "#FF2D2D",
+    "dark": "#FC0404"
   },
-  "favicon": "/favicon.svg",
+  "logo": {
+    "dark": "/logo/tracectrl-dark.png",
+    "light": "/logo/tracectrl-light.png",
+    "href": "https://tracectrl.ai"
+  },
+  "favicon": "/favicon.png",
+  "styling": {
+    "eyebrows": "section",
+    "codeblocks": "dark"
+  },
+  "topbar": {
+    "style": "gradient"
+  },
   "navigation": {
     "tabs": [
       {
-        "tab": "Guides",
+        "tab": "Documentation",
         "groups": [
           {
-            "group": "Getting started",
+            "group": "Getting Started",
             "pages": [
-              "index",
+              "introduction",
               "quickstart",
-              "development"
+              "architecture"
             ]
           },
           {
-            "group": "Customization",
+            "group": "SDK",
             "pages": [
-              "essentials/settings",
-              "essentials/navigation"
+              "sdk/installation",
+              "sdk/configuration",
+              "sdk/session-management",
+              "sdk/context-propagation"
             ]
           },
           {
-            "group": "Writing content",
+            "group": "Framework Instrumentors",
             "pages": [
-              "essentials/markdown",
-              "essentials/code",
-              "essentials/images",
-              "essentials/reusable-snippets"
+              "instrumentors/langchain",
+              "instrumentors/crewai",
+              "instrumentors/agno",
+              "instrumentors/google-adk",
+              "instrumentors/strands"
             ]
           },
           {
-            "group": "AI tools",
+            "group": "Security",
             "pages": [
-              "ai-tools/cursor",
-              "ai-tools/claude-code",
-              "ai-tools/windsurf"
+              "security/span-schema",
+              "security/tool-categories",
+              "security/enrichment"
+            ]
+          },
+          {
+            "group": "Platform",
+            "pages": [
+              "platform/engine",
+              "platform/dashboard",
+              "platform/data-flow"
             ]
           }
         ]
       },
       {
-        "tab": "API reference",
+        "tab": "API Reference",
         "groups": [
           {
-            "group": "API documentation",
+            "group": "Engine API",
             "pages": [
-              "api-reference/introduction"
-            ]
-          },
-          {
-            "group": "Endpoint examples",
-            "pages": [
-              "api-reference/endpoint/get",
-              "api-reference/endpoint/create",
-              "api-reference/endpoint/delete",
-              "api-reference/endpoint/webhook"
+              "api-reference/overview",
+              "api-reference/health",
+              "api-reference/topology-graph",
+              "api-reference/topology-agent",
+              "api-reference/sessions",
+              "api-reference/sessions-spans",
+              "api-reference/risk-agents"
             ]
           }
         ]
       }
-    ],
-    "global": {
-      "anchors": [
-        {
-          "anchor": "Documentation",
-          "href": "https://mintlify.com/docs",
-          "icon": "book-open-cover"
-        },
-        {
-          "anchor": "Blog",
-          "href": "https://mintlify.com/blog",
-          "icon": "newspaper"
-        }
-      ]
-    }
+    ]
   },
-  "logo": {
-    "light": "/logo/light.svg",
-    "dark": "/logo/dark.svg"
-  },
-  "navbar": {
-    "links": [
-      {
-        "label": "Support",
-        "href": "mailto:hi@mintlify.com"
-      }
-    ],
-    "primary": {
-      "type": "button",
-      "label": "Dashboard",
-      "href": "https://dashboard.mintlify.com"
-    }
-  },
-  "contextual": {
-    "options": [
-     "copy",
-     "view",
-     "chatgpt",
-     "claude",
-     "perplexity",
-     "mcp",
-     "cursor",
-     "vscode"
-   ]
-  },
-  "footer": {
-    "socials": {
-      "x": "https://x.com/mintlify",
-      "github": "https://github.com/mintlify",
-      "linkedin": "https://linkedin.com/company/mintlify"
-    }
+  "footerSocials": {
+    "github": "https://github.com/tracectrl",
+    "website": "https://tracectrl.ai"
   }
 }

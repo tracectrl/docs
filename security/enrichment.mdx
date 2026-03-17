@@ -1,0 +1,66 @@
+---
+title: "Security Enrichment"
+description: "How TraceCtrlSpanProcessor enriches spans with security context"
+---
+
+## Overview
+
+The `TraceCtrlSpanProcessor` is an OpenTelemetry `SpanProcessor` that runs on every span. It reads framework-set attributes and adds TraceCtrl security context — agent identity, tool risk classification, session correlation, and prompt integrity hashing.
+
+## Enrichment Pipeline
+
+For each span, the processor runs these enrichment steps:
+
+<Steps>
+  <Step title="Session ID">
+    On span start, attaches the current `tracectrl.session_id` from context vars. This ensures every span in a session is correlated.
+  </Step>
+
+  <Step title="Agent Identity">
+    For `AGENT` spans, derives `tracectrl.agent.id` and `tracectrl.agent.name` from framework-specific attributes (e.g., Agno's `agno.agent.id`, OpenInference's `agent.name`). If only a name exists, the ID is derived as `name.lower().replace(' ', '-')`.
+  </Step>
+
+  <Step title="Tool Category">
+    For spans with a `tool.name` attribute, classifies the tool into one of 8 risk categories and sets `tracectrl.tool.category`.
+  </Step>
+
+  <Step title="System Prompt Hash">
+    For spans with `llm.system` (the system prompt), computes a SHA-256 hash (truncated to 16 hex chars) and stores it as `tracectrl.system_prompt_hash`. A change in this hash between observations indicates prompt drift or tampering.
+  </Step>
+
+  <Step title="Input Source">
+    Sets `tracectrl.input.source` to `"agent"` if `tracectrl.caller.agent_id` is present, otherwise `"user"`. This classifies whether the input came from another agent or a human user.
+  </Step>
+</Steps>
+
+## Using the Processor Directly
+
+The processor is automatically registered when you call `.instrument()` on any instrumentor. If you need to use it with a custom TracerProvider:
+
+```python
+from tracectrl.processor import TraceCtrlSpanProcessor
+from opentelemetry.sdk.trace import TracerProvider
+
+provider = TracerProvider()
+provider.add_span_processor(TraceCtrlSpanProcessor())
+```
+
+## Prompt Drift Detection
+
+The `tracectrl.system_prompt_hash` attribute enables detecting when an agent's system prompt changes unexpectedly:
+
+```sql
+-- Find agents whose system prompt hash changed
+SELECT
+  agent_id,
+  groupArray(DISTINCT SpanAttributes['tracectrl.system_prompt_hash']) AS hashes,
+  count(DISTINCT SpanAttributes['tracectrl.system_prompt_hash']) AS unique_hashes
+FROM tracectrl.otel_traces FINAL
+WHERE SpanAttributes['tracectrl.system_prompt_hash'] != ''
+GROUP BY SpanAttributes['tracectrl.agent.id'] AS agent_id
+HAVING unique_hashes > 1
+```
+
+<Warning>
+  A changing system prompt hash doesn't always mean an attack — it could be a legitimate deployment update. But combined with other signals (e.g., `input.source = "external"`), it's a strong indicator of prompt injection.
+</Warning>

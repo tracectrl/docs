@@ -1,0 +1,64 @@
+---
+title: "Introduction"
+description: "Security observability and control for agentic AI systems"
+---
+
+# TraceCtrl
+
+TraceCtrl gives security teams and developers complete visibility into every agent action, tool call, and data access — with runtime protection and attack graph risk scoring.
+
+Built by [CloudsineAI](https://cloudsine.ai).
+
+## What TraceCtrl Does
+
+<CardGroup cols={2}>
+  <Card title="Agent Visibility" icon="eye">
+    See every LLM call, tool invocation, and agent-to-agent message in real time. Know exactly what your agents are doing.
+  </Card>
+  <Card title="Security Enrichment" icon="shield">
+    Every span is enriched with security attributes — tool risk categories, input provenance, session correlation, and prompt drift detection.
+  </Card>
+  <Card title="Topology Mapping" icon="diagram-project">
+    Automatically discovers agent-to-agent and agent-to-tool relationships, building a live topology graph of your agentic system.
+  </Card>
+  <Card title="Risk Scoring" icon="triangle-exclamation">
+    TAGAAI-powered attack graph analysis scores agents and paths by exploitability — prompt injection, excessive agency, data leakage.
+  </Card>
+</CardGroup>
+
+## How It Works
+
+TraceCtrl uses OpenTelemetry as the transport layer. You add 3 lines to your agent code, and the SDK captures every operation as enriched spans.
+
+```python
+import tracectrl
+tracectrl.configure(service_name="my-agent")
+
+from tracectrl.instrumentation.langchain import LangChainInstrumentor
+LangChainInstrumentor().instrument()
+
+# Your existing agent code — no changes needed
+```
+
+Spans flow through the OTel Collector into ClickHouse, where the TraceCtrl Engine processes them into an agent inventory, topology graph, and risk scores — all queryable via API and visible in the dashboard.
+
+## Supported Frameworks
+
+| Framework | Package | Status |
+|-----------|---------|--------|
+| LangChain / LangGraph | `tracectrl-instrumentation-langchain` | Stable |
+| CrewAI | `tracectrl-instrumentation-crewai` | Stable |
+| Agno | `tracectrl-instrumentation-agno` | Stable |
+| Google ADK | `tracectrl-instrumentation-google-adk` | Stable |
+| AWS Strands | `tracectrl-instrumentation-strands` | Stable |
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Quickstart" icon="rocket" href="/quickstart">
+    Get TraceCtrl running in 5 minutes with Docker Compose.
+  </Card>
+  <Card title="SDK Installation" icon="download" href="/sdk/installation">
+    Install the SDK and instrument your first agent.
+  </Card>
+</CardGroup>

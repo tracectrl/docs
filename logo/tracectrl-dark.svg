@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 36">
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@700&amp;family=JetBrains+Mono:wght@700&amp;display=swap');
+  </style>
+  <text y="26">
+    <tspan font-family="'Poppins', sans-serif" font-weight="700" font-size="22" fill="#F5F5F5">trace</tspan><tspan font-family="'JetBrains Mono', monospace" font-weight="700" font-size="22" fill="#FC0404">ctrl</tspan>
+  </text>
+</svg>

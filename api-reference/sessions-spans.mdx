@@ -1,0 +1,58 @@
+---
+title: "Get Trace Spans"
+api: "GET http://localhost:8000/api/v1/sessions/{trace_id}/spans"
+description: "Returns all spans for a specific trace"
+---
+
+Returns the flat list of spans for a trace, ordered by timestamp. The frontend builds the parent-child tree from `parent_span_id`.
+
+### Path Parameters
+
+<ParamField path="trace_id" type="string" required>
+  The OpenTelemetry trace ID.
+</ParamField>
+
+### Response
+
+Array of span detail objects:
+
+<ResponseField name="span_id" type="string">Unique span identifier</ResponseField>
+<ResponseField name="parent_span_id" type="string">Parent span ID. Empty string for root spans.</ResponseField>
+<ResponseField name="span_name" type="string">Operation name</ResponseField>
+<ResponseField name="span_kind" type="string">OTel span kind: `INTERNAL`, `SERVER`, `CLIENT`, etc.</ResponseField>
+<ResponseField name="service_name" type="string">Service that emitted this span</ResponseField>
+<ResponseField name="start_ns" type="integer">Start time as Unix nanoseconds</ResponseField>
+<ResponseField name="duration_ns" type="integer">Duration in nanoseconds</ResponseField>
+<ResponseField name="status_code" type="string">`STATUS_CODE_OK`, `STATUS_CODE_ERROR`, or `STATUS_CODE_UNSET`</ResponseField>
+<ResponseField name="status_message" type="string">Error message if status is ERROR</ResponseField>
+<ResponseField name="attributes" type="object">Full `SpanAttributes` map — all `tracectrl.*`, `openinference.*`, `input.*`, `output.*` attributes</ResponseField>
+<ResponseField name="resource_attributes" type="object">Resource-level attributes (service name, SDK version, etc.)</ResponseField>
+
+<ResponseExample>
+```json 200
+[
+  {
+    "span_id": "abc123",
+    "parent_span_id": "",
+    "span_name": "AgentExecutor",
+    "span_kind": "INTERNAL",
+    "service_name": "my-agent-service",
+    "start_ns": 1742222400000000000,
+    "duration_ns": 3500000000,
+    "status_code": "STATUS_CODE_OK",
+    "status_message": "",
+    "attributes": {
+      "openinference.span.kind": "AGENT",
+      "tracectrl.agent.id": "researcher-agent",
+      "tracectrl.agent.name": "Researcher",
+      "tracectrl.session_id": "a1b2c3d4-e5f6-7890",
+      "tracectrl.tool.category": "",
+      "input.value": "Summarize my latest emails"
+    },
+    "resource_attributes": {
+      "service.name": "my-agent-service"
+    }
+  }
+]
+```
+</ResponseExample>

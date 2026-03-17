@@ -1,0 +1,68 @@
+---
+title: "LangChain / LangGraph"
+description: "Instrument LangChain and LangGraph agents with TraceCtrl"
+---
+
+## Installation
+
+```bash
+pip install -e ./sdk/tracectrl
+pip install -e ./sdk/tracectrl-instrumentation-langchain
+```
+
+## Usage
+
+```python
+import tracectrl
+tracectrl.configure(service_name="my-langchain-agent")
+
+from tracectrl.instrumentation.langchain import LangChainInstrumentor
+LangChainInstrumentor().instrument()
+
+# Your LangChain code — no changes needed
+from langchain_openai import ChatOpenAI
+from langchain.agents import create_openai_tools_agent, AgentExecutor
+
+llm = ChatOpenAI(model="gpt-4o")
+# ... define tools, prompt, agent
+agent_executor.invoke({"input": "Summarize my latest emails"})
+```
+
+## What Gets Captured
+
+| Span Kind | Examples | Attributes Set |
+|-----------|----------|----------------|
+| `CHAIN` | Chain/pipeline runs | `input.value`, `output.value` |
+| `LLM` | `ChatOpenAI`, `ChatAnthropic` | `llm.model_name`, `llm.system` |
+| `TOOL` | Tool invocations | `tool.name`, `tool.description`, `tracectrl.tool.category` |
+| `AGENT` | `AgentExecutor` runs | `tracectrl.agent.id`, `tracectrl.agent.name` |
+| `RETRIEVER` | Vector store retrievals | `retrieval.documents` |
+
+## LangGraph Support
+
+LangGraph agents are automatically captured — each node execution appears as a span with parent-child relationships matching the graph structure.
+
+```python
+from langgraph.graph import StateGraph
+
+graph = StateGraph(MyState)
+graph.add_node("researcher", researcher_node)
+graph.add_node("writer", writer_node)
+# Each node creates spans that TraceCtrl enriches
+```
+
+## API
+
+### `LangChainInstrumentor()`
+
+<ParamField path="instrument" type="method">
+  `instrument(tracer_provider=None, skip_dep_check=False)` — Registers the TraceCtrl span processor and wraps the OpenInference LangChain instrumentor.
+</ParamField>
+
+<ParamField path="uninstrument" type="method">
+  `uninstrument()` — Shuts down processors and unwraps the instrumentor.
+</ParamField>
+
+<ParamField path="instrumented" type="bool">
+  Whether the instrumentor is currently active.
+</ParamField>

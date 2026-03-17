@@ -1,0 +1,50 @@
+---
+title: "AWS Strands"
+description: "Instrument AWS Strands agents with TraceCtrl"
+---
+
+## Installation
+
+```bash
+pip install -e ./sdk/tracectrl
+pip install -e ./sdk/tracectrl-instrumentation-strands
+```
+
+## Usage
+
+```python
+import tracectrl
+tracectrl.configure(service_name="my-strands-agent")
+
+from tracectrl.instrumentation.strands import StrandsInstrumentor
+StrandsInstrumentor().instrument()
+
+# Your Strands code
+from strands import Agent
+
+agent = Agent(model="claude-sonnet-4-20250514")
+agent("Summarize this report")
+```
+
+## Implementation Note
+
+Unlike other instrumentors that wrap an OpenInference `Instrumentor` class, the Strands integration uses `StrandsAgentsToOpenInferenceProcessor` — a processor-based pattern. The `StrandsInstrumentor` wrapper provides the same `.instrument()` / `.uninstrument()` API for consistency.
+
+## What Gets Captured
+
+- Agent execution spans with model information
+- Tool calls with risk category classification
+- Input/output values
+- Session correlation via `tracectrl.session_id`
+
+## API
+
+### `StrandsInstrumentor()`
+
+<ParamField path="instrument" type="method">
+  `instrument(tracer_provider=None, skip_dep_check=False)` — Registers the TraceCtrl span processor and the Strands-to-OpenInference processor.
+</ParamField>
+
+<ParamField path="uninstrument" type="method">
+  `uninstrument()` — Shuts down processors.
+</ParamField>

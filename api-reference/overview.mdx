@@ -1,0 +1,39 @@
+---
+title: "API Overview"
+description: "TraceCtrl Engine REST API reference"
+---
+
+## Base URL
+
+All endpoints are prefixed with `/api/v1`.
+
+```
+http://localhost:8000/api/v1
+```
+
+## Authentication
+
+The Engine API currently does not require authentication. In production deployments, secure the API behind a reverse proxy or API gateway.
+
+## Endpoints
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | [`/health`](/api-reference/health) | Health check |
+| `GET` | [`/topology/graph`](/api-reference/topology-graph) | Full topology graph |
+| `GET` | [`/topology/agents/{agent_id}`](/api-reference/topology-agent) | Single agent detail |
+| `GET` | [`/sessions`](/api-reference/sessions) | Session list |
+| `GET` | [`/sessions/{trace_id}/spans`](/api-reference/sessions-spans) | Spans for a trace |
+| `GET` | [`/risk/agents`](/api-reference/risk-agents) | All agents with risk data |
+
+## Response Format
+
+All endpoints return JSON. Errors return:
+
+```json
+{
+  "detail": "Error description"
+}
+```
+
+with the appropriate HTTP status code (400, 404, or 500).

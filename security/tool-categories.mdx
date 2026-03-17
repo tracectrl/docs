@@ -1,0 +1,57 @@
+---
+title: "Tool Categories"
+description: "Automatic risk classification for every tool call"
+---
+
+## Overview
+
+Every tool call captured by TraceCtrl is automatically classified into a risk category based on its name and description. This classification is stored in the `tracectrl.tool.category` span attribute.
+
+The classification happens in the `TraceCtrlSpanProcessor` — no configuration required.
+
+## Risk Categories
+
+| Category | Matches | Risk Signal |
+|----------|---------|-------------|
+| `code_execution` | exec, run_code, python, bash, shell, eval, compile | **High** — arbitrary code execution |
+| `email` | send_email, send_mail, smtp | **High** — data exfiltration vector |
+| `external_api` | http, fetch, request, curl, scrape, browse, web | **Medium** — network access |
+| `file_system` | write_file, save_file, create_file, delete_file, rm, mv | **Medium** — filesystem mutation |
+| `memory_write` | vector, embed, upsert, add_document, index | **Medium** — memory poisoning vector |
+| `memory_read` | search, query, retrieve, recall, lookup | **Low** — information access |
+| `human_interaction` | approval, confirm, ask_user, hitl | **Low** — human-in-the-loop safety |
+| `internal_api` | _(default fallback)_ | **Low** — internal function call |
+
+## How It Works
+
+The `infer_tool_category()` function matches against the tool's name and description using keyword rules. The first matching rule wins:
+
+```python
+from tracectrl.inference import infer_tool_category
+
+infer_tool_category("run_python_code")       # → "code_execution"
+infer_tool_category("send_email_to_user")    # → "email"
+infer_tool_category("fetch_weather_data")    # → "external_api"
+infer_tool_category("write_file")            # → "file_system"
+infer_tool_category("upsert_to_pinecone")    # → "memory_write"
+infer_tool_category("search_documents")      # → "memory_read"
+infer_tool_category("ask_user_for_approval") # → "human_interaction"
+infer_tool_category("calculate_tax")         # → "internal_api"
+```
+
+## Matching Logic
+
+Rules are evaluated in priority order — the first match wins. Both the tool name and description are checked (case-insensitive). The rules are defined in `tracectrl.inference.TOOL_CATEGORY_RULES`.
+
+<Note>
+  The description field is important for accurate classification. A tool named `process_data` would be classified as `internal_api`, but if its description contains "fetches data from external HTTP endpoint", it would match `external_api`.
+</Note>
+
+## Why This Matters
+
+Tool category classification enables:
+
+- **Risk scoring** — agents with access to `code_execution` or `email` tools are inherently higher risk
+- **Attack path analysis** — TAGAAI identifies exploitation chains through high-risk tool categories
+- **Topology visualization** — the dashboard shows tool nodes colored by risk level
+- **Alerting** — trigger alerts when unexpected tool categories appear in agent behavior

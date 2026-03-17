@@ -1,0 +1,16 @@
+---
+title: "Health Check"
+api: "GET http://localhost:8000/api/v1/health"
+description: "Check if the engine is running"
+---
+
+Returns the engine status and version.
+
+<ResponseExample>
+```json 200
+{
+  "status": "ok",
+  "version": "0.1.0"
+}
+```
+</ResponseExample>

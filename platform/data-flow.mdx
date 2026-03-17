@@ -1,0 +1,83 @@
+---
+title: "Data Flow"
+description: "How spans flow from your agent to the dashboard"
+---
+
+## End-to-End Flow
+
+```
+Your Agent → SDK → OTel Collector → ClickHouse → Engine Pipeline → REST API → Dashboard
+```
+
+<Steps>
+  <Step title="Agent emits spans">
+    The SDK's framework instrumentor captures every LLM call, tool invocation, and agent action as an OpenTelemetry span. The `TraceCtrlSpanProcessor` enriches each span with security attributes.
+  </Step>
+
+  <Step title="Spans exported via OTLP">
+    The `BatchSpanProcessor` batches spans and exports them via OTLP gRPC to the OTel Collector at `:4317`.
+  </Step>
+
+  <Step title="Collector routes to ClickHouse">
+    The OTel Collector receives spans and exports them to ClickHouse via the `clickhouseexporter`. Spans land in the `otel_traces` table with `SpanAttributes` stored as a `Map(String, String)`.
+  </Step>
+
+  <Step title="Engine pipeline processes spans">
+    Every 60 seconds, the engine reads new spans since the last watermark, builds the agent inventory, and constructs topology edges.
+  </Step>
+
+  <Step title="API serves processed data">
+    The REST API exposes the topology graph, agent details, session list, and span trees. The dashboard consumes these endpoints.
+  </Step>
+</Steps>
+
+## Verifying Each Stage
+
+### 1. Are spans being exported?
+
+Set `TRACECTRL_FAIL_SILENTLY=false` temporarily to see exporter errors:
+
+```bash
+TRACECTRL_FAIL_SILENTLY=false python your_agent.py
+```
+
+### 2. Is the Collector receiving spans?
+
+```bash
+docker compose logs otel-collector 2>&1 | grep "TracesExporter"
+```
+
+### 3. Are spans in ClickHouse?
+
+```bash
+docker exec -it $(docker compose ps -q clickhouse) clickhouse-client \
+  --query "SELECT count() FROM tracectrl.otel_traces"
+```
+
+### 4. Is the pipeline running?
+
+```bash
+docker compose logs tracectrl-engine 2>&1 | grep "Pipeline run"
+```
+
+### 5. Does the API return data?
+
+```bash
+curl http://localhost:8000/api/v1/topology/graph | python -m json.tool
+```
+
+## Latency
+
+| Stage | Typical Latency |
+|-------|----------------|
+| SDK span processing | < 1ms per span |
+| Batch export to Collector | 1 second (configurable via `TRACECTRL_BATCH_DELAY_MS`) |
+| Collector → ClickHouse | < 100ms |
+| Pipeline processing | 60 second cycle (configurable) |
+| API response | < 50ms |
+
+**End-to-end:** from agent action to dashboard visibility is typically **60-65 seconds**, dominated by the pipeline interval.
+
+<Tip>
+  For faster feedback during development, set `PIPELINE_INTERVAL_SECONDS=10` in your `.env` file.
+</Tip>

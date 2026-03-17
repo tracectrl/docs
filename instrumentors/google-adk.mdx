@@ -1,0 +1,47 @@
+---
+title: "Google ADK"
+description: "Instrument Google Agent Development Kit agents with TraceCtrl"
+---
+
+## Installation
+
+```bash
+pip install -e ./sdk/tracectrl
+pip install -e ./sdk/tracectrl-instrumentation-google-adk
+```
+
+## Usage
+
+```python
+import tracectrl
+tracectrl.configure(service_name="my-adk-agent")
+
+from tracectrl.instrumentation.google_adk import ADKInstrumentor
+ADKInstrumentor().instrument()
+
+# Your Google ADK code
+from google.adk import Agent
+
+agent = Agent(model="gemini-2.0-flash", tools=[...])
+agent.run("Plan my trip")
+```
+
+## What Gets Captured
+
+Google ADK agents generate spans for:
+- Agent execution lifecycle
+- Gemini model calls with model name and parameters
+- Tool invocations with risk category classification
+- Input/output values for each step
+
+## API
+
+### `ADKInstrumentor()`
+
+<ParamField path="instrument" type="method">
+  `instrument(tracer_provider=None, skip_dep_check=False)` — Registers the TraceCtrl span processor and wraps the OpenInference Google ADK instrumentor.
+</ParamField>
+
+<ParamField path="uninstrument" type="method">
+  `uninstrument()` — Shuts down processors and unwraps the instrumentor.
+</ParamField>

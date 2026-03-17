@@ -1,0 +1,77 @@
+---
+title: "Architecture"
+description: "How TraceCtrl's components fit together"
+---
+
+## System Overview
+
+TraceCtrl has four components: the **Python SDK** (in your agent), the **OTel Collector** (span routing), the **Intelligence Engine** (processing + API), and the **Dashboard** (visualization).
+
+<Frame>
+  <img src="/images/architecture.png" alt="TraceCtrl Architecture" />
+</Frame>
+
+## Component Details
+
+### Python SDK
+
+The SDK wraps [OpenInference](https://github.com/Arize-ai/openinference) framework instrumentors with a `TraceCtrlSpanProcessor` that enriches every span with security attributes. It uses OpenTelemetry as the transport — no custom protocols, no vendor lock-in.
+
+**Key modules:**
+- `tracectrl.config` — `configure()` sets up the TracerProvider with OTLP gRPC exporter
+- `tracectrl.processor` — `TraceCtrlSpanProcessor` adds agent identity, tool categories, session IDs
+- `tracectrl.inference` — Classifies tools into 8 risk categories
+- `tracectrl.session` — Session ID management via Python `contextvars`
+- `tracectrl.context` — W3C traceparent propagation for cross-service agents
+
+### OTel Collector
+
+A standard OpenTelemetry Collector configured to receive OTLP spans on gRPC (`:4317`) and HTTP (`:4318`), then export them to ClickHouse via the `clickhouseexporter`. Configuration lives in `config/otel-collector.yaml`.
+
+### Intelligence Engine
+
+A FastAPI application that:
+
+1. **Runs a pipeline** every 60 seconds — reads new spans from `otel_traces`, upserts the agent inventory, builds topology edges, and advances the watermark
+2. **Serves a REST API** — topology graph, agent details, session list, span trees
+3. **Uses ClickHouse** `ReplacingMergeTree` tables with cumulative state (observation counts, call counts, confidence levels)
+
+### Dashboard
+
+A React + Vite + TypeScript SPA with:
+
+- **Topology** — Cytoscape.js graph with dagre layout showing agents, tools, and their connections
+- **Sessions** — Trace explorer with span trees and waterfall timelines
+- **Risk Dashboard** — CISO risk view (Sprint 2)
+- **Attack Paths** — Ranked exploitation chains (Sprint 2)
+
+## Data Pipeline
+
+<Steps>
+  <Step title="Fetch">
+    Read new spans from `otel_traces` since the last watermark timestamp.
+  </Step>
+  <Step title="Inventory">
+    Upsert agent records with cumulative observation counts and tool lists.
+  </Step>
+  <Step title="Topology">
+    Upsert agent-to-agent and agent-to-tool edges with confidence scoring.
+  </Step>
+  <Step title="Watermark">
+    Advance the watermark timestamp. Only advances on success — no data is ever skipped.
+  </Step>
+</Steps>
+
+## ClickHouse Tables
+
+| Table | Engine | Purpose |
+|-------|--------|---------|
+| `otel_traces` | Auto-created by Collector | Raw OpenTelemetry spans |
+| `agent_inventory` | ReplacingMergeTree | Deduplicated agent records |
+| `topology_agent_edges` | ReplacingMergeTree | Agent-to-agent connections |
+| `topology_tool_edges` | ReplacingMergeTree | Agent-to-tool connections |
+| `pipeline_state` | ReplacingMergeTree | Watermark tracking |
+
+<Note>
+  ReplacingMergeTree deduplicates rows during background merges. Always query with `FINAL` for correct results: `SELECT * FROM agent_inventory FINAL`.
+</Note>

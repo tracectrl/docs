@@ -1,0 +1,51 @@
+---
+title: "CrewAI"
+description: "Instrument CrewAI agents and crews with TraceCtrl"
+---
+
+## Installation
+
+```bash
+pip install -e ./sdk/tracectrl
+pip install -e ./sdk/tracectrl-instrumentation-crewai
+```
+
+## Usage
+
+```python
+import tracectrl
+tracectrl.configure(service_name="my-crew")
+
+from tracectrl.instrumentation.crewai import CrewAIInstrumentor
+CrewAIInstrumentor().instrument()
+
+# Your CrewAI code
+from crewai import Agent, Task, Crew
+
+researcher = Agent(role="Researcher", goal="Find data", ...)
+writer = Agent(role="Writer", goal="Write report", ...)
+crew = Crew(agents=[researcher, writer], tasks=[...])
+crew.kickoff()
+```
+
+## What Gets Captured
+
+Each agent in the crew generates spans with:
+- Agent identity (`tracectrl.agent.id`, `tracectrl.agent.name`, `tracectrl.agent.role`)
+- Tool calls with risk categories
+- Agent-to-agent delegation (crew → agent parent-child spans)
+- LLM calls with model name and system prompt hash
+
+CrewAI's multi-agent delegation appears as nested spans in the trace tree, with the crew as the root and each agent as a child.
+
+## API
+
+### `CrewAIInstrumentor()`
+
+<ParamField path="instrument" type="method">
+  `instrument(tracer_provider=None, skip_dep_check=False)` — Registers the TraceCtrl span processor and wraps the OpenInference CrewAI instrumentor.
+</ParamField>
+
+<ParamField path="uninstrument" type="method">
+  `uninstrument()` — Shuts down processors and unwraps the instrumentor.
+</ParamField>

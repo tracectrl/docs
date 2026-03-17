@@ -1,0 +1,73 @@
+---
+title: "Span Schema"
+description: "Complete reference for TraceCtrl span attributes"
+---
+
+## Overview
+
+Every span captured by TraceCtrl carries two layers of attributes:
+
+1. **OpenInference attributes** — set by the framework instrumentor (LLM calls, tool names, I/O values)
+2. **TraceCtrl security attributes** — set by the `TraceCtrlSpanProcessor` (agent identity, risk classification, session correlation)
+
+## TraceCtrl Security Attributes
+
+These are the `tracectrl.*` attributes added to every span:
+
+| Attribute | Type | Description |
+|-----------|------|-------------|
+| `tracectrl.agent.id` | `string` | Unique agent identifier. Derived from framework metadata or agent name. |
+| `tracectrl.agent.name` | `string` | Human-readable agent name. |
+| `tracectrl.agent.role` | `string` | Agent's role or purpose (e.g., "Researcher", "Writer"). |
+| `tracectrl.agent.framework` | `string` | Detected framework: `langchain`, `crewai`, `agno`, `google_adk`, `strands`. |
+| `tracectrl.session_id` | `string` | Session correlation ID. Groups related spans across a conversation. |
+| `tracectrl.caller.agent_id` | `string` | The agent that triggered this span (for multi-agent delegation). |
+| `tracectrl.input.source` | `string` | Input provenance: `user`, `agent`, `external`, or `memory`. |
+| `tracectrl.tool.category` | `string` | Risk category of the tool. See [Tool Categories](/security/tool-categories). |
+| `tracectrl.tool.target` | `string` | Target resource of the tool call (e.g., URL, file path). |
+| `tracectrl.memory.operation` | `string` | Memory operation type: `read` or `write`. |
+| `tracectrl.memory.store_id` | `string` | Identifier of the memory/vector store. |
+| `tracectrl.memory.write_provenance` | `string` | Origin of data being written to memory. |
+| `tracectrl.system_prompt_hash` | `string` | SHA-256 hash (first 16 hex chars) of the system prompt. Used for prompt drift detection. |
+| `tracectrl.span_sequence` | `int` | Sequence number within the trace. |
+
+## OpenInference Attributes
+
+These are set by the underlying framework instrumentors:
+
+| Attribute | Type | Description |
+|-----------|------|-------------|
+| `openinference.span.kind` | `string` | Span type: `AGENT`, `TOOL`, `LLM`, `CHAIN`, `RETRIEVER`, `EMBEDDING`. |
+| `input.value` | `string` | Input to the operation (prompt, query, etc.). |
+| `output.value` | `string` | Output from the operation (response, result). |
+| `llm.model_name` | `string` | Model identifier (e.g., `gpt-4o`, `claude-sonnet-4-20250514`). |
+| `llm.system` | `string` | System prompt text. |
+| `llm.prompt_template.template` | `string` | Prompt template if used. |
+| `tool.name` | `string` | Tool function name. |
+| `tool.description` | `string` | Tool description string. |
+| `tool.parameters` | `string` | Tool call parameters (JSON). |
+| `retrieval.documents` | `string` | Retrieved documents (for retriever spans). |
+
+## Schema Constants
+
+Import attribute names as constants to avoid typos:
+
+```python
+from tracectrl.schema import (
+    TC_AGENT_ID,
+    TC_AGENT_NAME,
+    TC_TOOL_CATEGORY,
+    TC_SESSION_ID,
+    TC_INPUT_SOURCE,
+    TC_SYSTEM_PROMPT_HASH,
+    OI_SPAN_KIND,
+    INPUT_VALUE,
+    OUTPUT_VALUE,
+    LLM_MODEL_NAME,
+    TOOL_NAME,
+)
+```
+
+<Tip>
+  The `tracectrl.system_prompt_hash` attribute enables **prompt drift detection** — if the hash changes between observations, the system prompt was modified. This is a key indicator for prompt injection attacks.
+</Tip>
