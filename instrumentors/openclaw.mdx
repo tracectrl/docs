@@ -1,0 +1,134 @@
+---
+title: "OpenClaw"
+description: "Trace OpenClaw gateway sessions with native OTEL export"
+---
+
+## Overview
+
+[OpenClaw](https://openclaw.ai) is a self-hosted AI messaging gateway that bridges chat platforms (WhatsApp, Telegram, Discord, Slack, iMessage, etc.) to AI agents.
+
+OpenClaw natively exports OpenTelemetry traces — **no TraceCtrl SDK needed**. You just point its OTEL export at your TraceCtrl collector and spans flow automatically.
+
+## What Gets Traced
+
+| Span | Type | What It Captures |
+|------|------|-----------------|
+| `openclaw.model.usage` | LLM | Model, provider, token counts (input/output/cache), session ID |
+| `openclaw.message.processed` | Agent | Channel, outcome, chat ID, message ID, session ID |
+| `openclaw.webhook.processed` | Tool | Channel, webhook handler, chat ID |
+| `openclaw.webhook.error` | Tool (Error) | Channel, webhook, error details |
+| `openclaw.session.stuck` | Alert | Session state, age, queue depth |
+
+TraceCtrl automatically maps these to its agent/tool/LLM schema — each channel (WhatsApp, Telegram, etc.) becomes an agent node in the topology, and model usage becomes LLM edges.
+
+## Setup
+
+<Steps>
+  <Step title="Enable the diagnostics-otel plugin">
+    ```bash
+    openclaw plugins enable diagnostics-otel
+    ```
+  </Step>
+
+  <Step title="Configure OTEL export">
+    Add to `~/.openclaw/openclaw.json`:
+
+    ```json
+    {
+      "plugins": {
+        "allow": ["diagnostics-otel"],
+        "entries": {
+          "diagnostics-otel": { "enabled": true }
+        }
+      },
+      "diagnostics": {
+        "enabled": true,
+        "otel": {
+          "enabled": true,
+          "endpoint": "http://localhost:4318",
+          "protocol": "http/protobuf",
+          "serviceName": "openclaw-gateway",
+          "traces": true,
+          "metrics": false,
+          "logs": false,
+          "sampleRate": 1.0,
+          "flushIntervalMs": 5000
+        }
+      }
+    }
+    ```
+
+    <Note>
+      OpenClaw exports via **OTLP/HTTP** (port 4318), not gRPC (4317). TraceCtrl's OTel Collector accepts both protocols.
+    </Note>
+  </Step>
+
+  <Step title="Restart the gateway">
+    ```bash
+    openclaw gateway restart
+    ```
+  </Step>
+
+  <Step title="Verify in TraceCtrl">
+    Spans appear within 5 seconds. Open the dashboard and select `openclaw-gateway` from the project dropdown.
+
+    ```bash
+    tracectrl doctor   # Verify stack is running
+    curl http://localhost:8000/api/v1/projects
+    # Should include "openclaw-gateway"
+    ```
+  </Step>
+</Steps>
+
+## Recommended Settings
+
+| Setting | Dev | Production | Why |
+|---------|-----|------------|-----|
+| `sampleRate` | `1.0` | `0.2` | Full tracing during setup, sample at scale |
+| `flushIntervalMs` | `5000` | `60000` | 5s for near-real-time debugging, 60s to reduce overhead |
+| `traces` | `true` | `true` | Required for all TraceCtrl views |
+| `metrics` | `false` | `false` | Not processed by TraceCtrl yet (silently dropped) |
+| `logs` | `false` | `false` | High volume, not processed yet |
+
+## What You'll See
+
+### Topology
+
+Each chat channel becomes an agent node connected to the LLM models it uses:
+
+```
+[openclaw-whatsapp] ──webhook──→ [claude-sonnet-4-6]
+[openclaw-telegram] ──webhook──→ [gpt-4o]
+[openclaw-discord]  ──webhook──→ [gemini-2.5-pro]
+```
+
+### Sessions
+
+Each `openclaw.message.processed` span appears as a session row showing channel, outcome, duration, and nested LLM calls.
+
+### Risk
+
+- `openclaw.session.stuck` spans trigger risk alerts
+- `openclaw.webhook.error` spans tracked as error rates
+- Webhook error patterns surface in attack path analysis
+
+## Protocol Notes
+
+- OpenClaw supports **OTLP/HTTP (protobuf) only** — gRPC is not supported
+- The endpoint should be the HTTP port (`:4318`), not gRPC (`:4317`)
+- Metrics and logs are also exported if enabled, but TraceCtrl only processes traces currently — other signals are silently dropped with no errors
+
+## Environment Variables
+
+You can also configure OTEL export via environment variables instead of the JSON config file:
+
+```bash
+OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4318
+OTEL_SERVICE_NAME=openclaw-gateway
+OTEL_EXPORTER_OTLP_PROTOCOL=http/protobuf
+```
+
+## Reference
+
+- [OpenClaw Logging & OTEL docs](https://docs.openclaw.ai/logging)
+- [TraceCtrl OpenClaw Integration Plan](/docs/openclaw-integration-plan.md)

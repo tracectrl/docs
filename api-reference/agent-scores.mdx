@@ -1,0 +1,15 @@
+---
+title: "Agent Risk Scores"
+api: "GET /api/v1/risk/agent-scores"
+description: "Per-agent risk scores"
+---
+
+Returns risk scores for all agents with detected vulnerabilities.
+
+<ParamField query="service" type="string" optional>Filter by service name</ParamField>
+
+<ResponseField name="agent_id" type="string">Agent identifier</ResponseField>
+<ResponseField name="risk_score" type="float">Agent's highest risk score</ResponseField>
+<ResponseField name="severity" type="string">Critical, High, Medium, or Low</ResponseField>
+<ResponseField name="path_count" type="integer">Number of attack paths involving this agent</ResponseField>
+<ResponseField name="top_rule" type="string">Rule producing the highest score</ResponseField>

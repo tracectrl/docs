@@ -1,0 +1,14 @@
+---
+title: "Risk Summary"
+api: "GET /api/v1/risk/summary"
+description: "System-wide risk summary"
+---
+
+Returns the overall system risk score, severity, and aggregate counts.
+
+<ResponseField name="risk_score" type="float">System-wide risk score (0-10)</ResponseField>
+<ResponseField name="severity" type="string">Critical, High, Medium, or Low</ResponseField>
+<ResponseField name="critical_paths" type="integer">Number of Critical/High severity paths</ResponseField>
+<ResponseField name="agents_at_risk" type="integer">Number of agents with detected vulnerabilities</ResponseField>
+<ResponseField name="learning_agents" type="integer">Agents with < 10 observations</ResponseField>
+<ResponseField name="computed_at" type="datetime">Last computation timestamp</ResponseField>

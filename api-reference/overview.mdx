@@ -20,11 +20,18 @@ The Engine API currently does not require authentication. In production deployme
 | Method | Endpoint | Description |
 |--------|----------|-------------|
 | `GET` | [`/health`](/api-reference/health) | Health check |
-| `GET` | [`/topology/graph`](/api-reference/topology-graph) | Full topology graph |
+| `GET` | `/projects` | List all service names (for project selector) |
+| `GET` | [`/topology/graph`](/api-reference/topology-graph) | Full topology graph (supports `?service=` filter) |
 | `GET` | [`/topology/agents/{agent_id}`](/api-reference/topology-agent) | Single agent detail |
-| `GET` | [`/sessions`](/api-reference/sessions) | Session list |
+| `GET` | `/agents` | List all agents with inventory data (supports `?service=` filter) |
+| `GET` | `/agents/{agent_id}/tools` | Tools used by a specific agent |
+| `GET` | [`/sessions`](/api-reference/sessions) | Session list (supports `?service=` filter) |
 | `GET` | [`/sessions/{trace_id}/spans`](/api-reference/sessions-spans) | Spans for a trace |
+| `GET` | `/sessions/latest-spans` | Spans from the most recent workflow run (supports `?service=` filter) |
 | `GET` | [`/risk/agents`](/api-reference/risk-agents) | All agents with risk data |
+| `GET` | [`/risk/summary`](/api-reference/risk-summary) | System-wide risk summary |
+| `GET` | [`/risk/attack-paths`](/api-reference/attack-paths) | Ranked attack paths from TAGAAI rules |
+| `GET` | [`/risk/agent-scores`](/api-reference/agent-scores) | Per-agent risk scores |
 
 ## Response Format
 

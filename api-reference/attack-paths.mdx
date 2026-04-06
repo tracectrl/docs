@@ -1,0 +1,17 @@
+---
+title: "Attack Paths"
+api: "GET /api/v1/risk/attack-paths"
+description: "Ranked attack paths from TAGAAI rules"
+---
+
+Returns all detected attack paths ordered by risk score descending.
+
+<ParamField query="service" type="string" optional>Filter by service name</ParamField>
+
+<ResponseField name="path_id" type="string">Unique path identifier</ResponseField>
+<ResponseField name="rule_name" type="string">TAGAAI rule that fired (e.g., vulnerableToExcessiveAgency)</ResponseField>
+<ResponseField name="owasp_category" type="string">OWASP ASI category (ASI01, ASI02, etc.)</ResponseField>
+<ResponseField name="agents_involved" type="string[]">Agent IDs in the attack chain</ResponseField>
+<ResponseField name="path_steps" type="object[]">Step-by-step attack chain</ResponseField>
+<ResponseField name="risk_score" type="float">Computed risk score</ResponseField>
+<ResponseField name="severity" type="string">Critical, High, Medium, or Low</ResponseField>

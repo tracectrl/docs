@@ -19,7 +19,13 @@
     "codeblocks": "dark"
   },
   "topbar": {
-    "style": "gradient"
+    "style": "gradient",
+    "links": [
+      {
+        "name": "GitHub",
+        "url": "https://github.com/tracectrl/tracectrl"
+      }
+    ]
   },
   "navigation": {
     "tabs": [
@@ -50,7 +56,8 @@
               "instrumentors/crewai",
               "instrumentors/agno",
               "instrumentors/google-adk",
-              "instrumentors/strands"
+              "instrumentors/strands",
+              "instrumentors/openclaw"
             ]
           },
           {
@@ -84,6 +91,14 @@
               "api-reference/sessions",
               "api-reference/sessions-spans",
               "api-reference/risk-agents"
+            ]
+          },
+          {
+            "group": "Risk",
+            "pages": [
+              "api-reference/risk-summary",
+              "api-reference/attack-paths",
+              "api-reference/agent-scores"
             ]
           }
         ]

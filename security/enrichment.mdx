@@ -29,7 +29,24 @@ For each span, the processor runs these enrichment steps:
   </Step>
 
   <Step title="Input Source">
-    Sets `tracectrl.input.source` to `"agent"` if `tracectrl.caller.agent_id` is present, otherwise `"user"`. This classifies whether the input came from another agent or a human user.
+    Sets `tracectrl.input.source` based on input provenance:
+
+    - `"user"` — direct human input (no caller agent, no external marker)
+    - `"agent"` — input from another agent (`tracectrl.caller.agent_id` is present)
+    - `"external"` — input from an external source (HTTP webhook, API call, or untrusted channel)
+    - `"memory"` — input retrieved from a vector store or knowledge base (`memory_read` tool in the span ancestry)
+  </Step>
+
+  <Step title="Memory Operation">
+    For spans involving memory tools, sets `tracectrl.memory.operation` to `"read"` or `"write"` based on the tool category (`memory_read` vs `memory_write`).
+  </Step>
+
+  <Step title="Memory Write Provenance">
+    For `memory_write` operations, sets `tracectrl.memory.write_provenance` to track where the written data originated — the `input.source` value of the span that produced the content being stored. This enables detecting memory poisoning (e.g., external input being written to a shared knowledge base).
+  </Step>
+
+  <Step title="Span Sequence">
+    Sets `tracectrl.span_sequence` to an incrementing counter within the trace, reflecting the chronological order of span creation. This enables reconstructing the exact execution order even when timestamps have insufficient resolution.
   </Step>
 </Steps>
 

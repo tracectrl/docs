@@ -14,15 +14,20 @@ description: "Get TraceCtrl running end-to-end in 5 minutes"
 <Steps>
   <Step title="Clone the repository">
     ```bash
-    git clone https://github.com/cloudsineai/tracectrl.git
+    git clone https://github.com/tracectrl/tracectrl.git
     cd tracectrl
     ```
   </Step>
 
   <Step title="Choose your setup method">
     <Tabs>
-      <Tab title="TUI Wizard (Recommended)">
-        The TUI wizard walks you through configuration, writes your `.env` file, and launches the stack.
+      <Tab title="CLI Wizard (Recommended)">
+        The CLI wizard walks you through configuration, writes your `.env` file, and launches the stack.
+        ```bash
+        pip install tracectrl[setup]
+        tracectrl setup
+        ```
+        Or from source:
         ```bash
         pip install textual rich
         python setup/tui.py
@@ -48,13 +53,24 @@ description: "Get TraceCtrl running end-to-end in 5 minutes"
 
   <Step title="Verify the stack is running">
     ```bash
-    docker compose ps
-    curl http://localhost:8000/api/v1/health
+    tracectrl doctor
     ```
 
     You should see:
-    ```json
-    {"status": "ok", "version": "0.1.0"}
+    ```
+    TraceCtrl Doctor
+
+      [OK]   Engine API (http://localhost:8000/api/v1/health)
+      [OK]   Dashboard UI (http://localhost:3000)
+      [OK]   OTel Collector (HTTP) (http://localhost:4318/v1/traces)
+
+    All services are running.
+    ```
+
+    Or manually:
+    ```bash
+    docker compose ps
+    curl http://localhost:8000/api/v1/health
     ```
   </Step>
 </Steps>

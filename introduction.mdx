@@ -46,11 +46,17 @@ Spans flow through the OTel Collector into ClickHouse, where the TraceCtrl Engin
 
 | Framework | Package | Status |
 |-----------|---------|--------|
-| LangChain / LangGraph | `tracectrl-instrumentation-langchain` | Stable |
-| CrewAI | `tracectrl-instrumentation-crewai` | Stable |
 | Agno | `tracectrl-instrumentation-agno` | Stable |
-| Google ADK | `tracectrl-instrumentation-google-adk` | Stable |
 | AWS Strands | `tracectrl-instrumentation-strands` | Stable |
+| OpenClaw | Native OTEL — no SDK needed | Stable |
+| LangChain / LangGraph | `tracectrl-instrumentation-langchain` | Beta |
+| CrewAI | `tracectrl-instrumentation-crewai` | Beta |
+| Google ADK | `tracectrl-instrumentation-google-adk` | Beta |
+
+<Note>
+  **Stable** = tested end-to-end in production. **Beta** = instrumentor exists and emits spans, but has not been validated in production workloads.
+  OpenClaw uses its native OTEL export — no TraceCtrl SDK needed. See the [OpenClaw instrumentor guide](/instrumentors/openclaw).
+</Note>
 
 ## Next Steps
 

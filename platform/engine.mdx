@@ -31,7 +31,33 @@ The pipeline is scheduled via APScheduler and runs at the interval set by `PIPEL
   <Step title="Advance watermark">
     Updates `pipeline_state.last_processed_at`. Only advances on success — if the pipeline fails or finds no new spans, the watermark stays put so no data is ever skipped.
   </Step>
+
+  <Step title="Vulnerability mapping">
+    Scans the agent inventory and topology for known vulnerability patterns using TAGAAI rules. Each rule maps to an OWASP ASI category and carries a base CVSS score.
+  </Step>
+
+  <Step title="Attack graph generation">
+    Traverses topology edges to build multi-hop attack paths — chains of agent-to-tool-to-agent connections that an attacker could exploit. Each path records every step from entry point to impact.
+  </Step>
+
+  <Step title="Risk scoring">
+    Computes a risk score for each attack path using the formula: `base_cvss * tool_category_weight * input_source_weight * hop_multiplier`. Tool category weights reflect the danger of the tool type (e.g., `code_execution` = 1.0, `internal_api` = 0.1). Input source weights reflect trust level (`external` = 1.0, `user` = 0.8, `agent` = 0.5, `memory` = 0.6). Hop multipliers increase risk for longer chains.
+  </Step>
+
+  <Step title="Path persistence">
+    Writes scored attack paths, per-agent risk scores, and the system-wide risk summary to ClickHouse tables (`attack_paths`, `agent_risk_scores`, `system_risk`).
+  </Step>
 </Steps>
+
+## TAGAAI Rules
+
+The engine ships with three built-in detection rules based on OWASP ASI categories:
+
+| Rule | OWASP | Base CVSS | Trigger |
+|------|-------|-----------|---------|
+| Prompt Injection | ASI01 | 7.2 | Agent accepts `input.source = "external"` and has a changing `system_prompt_hash` |
+| Excessive Agency | ASI02 | 8.1 | Agent has access to `code_execution` or `email` tools without `human_interaction` guardrails |
+| Data Leakage | ASI01 + ASI02 | 6.8 | Agent chain where one reads from `memory_read` and another writes to `external_api` or `email` |
 
 ## Configuration
 

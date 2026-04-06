@@ -19,26 +19,45 @@ Interactive graph visualization built with Cytoscape.js and dagre layout.
 - **Tool nodes** (green) — each tool connected to its owning agent
 - **Edges** — solid lines for agent-to-agent delegation, dashed lines for agent-to-tool usage
 - **Legend** — color-coded with connection type labels
+- **Attacker View Toggle** — switch to an attacker perspective that highlights attack paths overlaid on the topology graph, showing exploitable chains in red
+- **Phase Overlay** — "Show Phases" groups concurrent agents into execution phases with "then" arrows showing sequential flow
+- **Replay Scrubber** — drag the timeline slider to highlight which agents are active at any point in time
+- **Project Selector** — sidebar dropdown filters all pages by service name
+- **Light/Dark Theme** — toggle in the sidebar footer, persists across sessions
 - Click any node to see its full metadata in the sidebar panel
 
 ### Sessions
 
-Trace explorer with two visualization modes:
+Trace explorer with inline expansion — click any session row to see:
 
-- **Span Tree** — hierarchical view showing parent-child span relationships with collapsible nodes, type badges (AGENT, TOOL, LLM, CHAIN), and proportional duration bars
-- **Swimlane Timeline** — waterfall view with horizontal bars showing parallel execution and temporal ordering
-- **Phase Overlay** — automatically detects execution phases with >1 second gaps
-- **Replay Scrubber** — step through the trace timeline
-
-Click any span to expand inline details showing timing, attributes, input/output values, and resource metadata.
+- **Trace Tree** — vertical tree with emoji icons per span type, indented connector lines, expand/collapse, and duration labels
+- **Span Detail Panel** — click any node in the tree to see timing, input/output values, grouped attributes (TraceCtrl, OpenInference, etc.), and resource metadata
+- **Waterfall Column** — proportional duration bars in the session table for at-a-glance comparison
+- **Sortable Table** — sort by root span name, span count, duration, or time
 
 ### Risk Dashboard
 
-CISO-level risk view with TAGAAI scoring. *(Coming in Sprint 2)*
+CISO-level risk overview powered by the TAGAAI attack graph engine.
+
+- **System Risk Score** — single 0-10 score with severity badge (Critical / High / Medium / Low)
+- **Stat Cards** — critical paths count, agents at risk, learning agents (< 10 observations)
+- **Per-Agent Risk Table** — sortable table showing each agent's highest risk score, severity, attack path count, and top triggering rule
+- **Computed At** — timestamp of the last risk computation cycle
 
 ### Attack Paths
 
-Ranked exploitation chains showing how an attacker could traverse agent-to-tool connections. *(Coming in Sprint 2)*
+Ranked list of exploitation chains detected by TAGAAI rules.
+
+- **Path List** — ordered by risk score descending, each entry shows rule name, OWASP category, severity badge, and involved agents
+- **Expandable Step Chains** — click any path to reveal the full step-by-step attack chain from entry point to impact
+- **Service Filter** — filter paths by service name
+
+### Agents
+
+Agent inventory view showing all discovered agents and their metadata.
+
+- **Agent Table** — name, framework, maturity level, observation count, and tool list
+- **Tool Expansion** — click any agent row to expand and see all observed tools with their risk categories
 
 ## Development
 
