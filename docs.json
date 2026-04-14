@@ -79,6 +79,17 @@
         ]
       },
       {
+        "tab": "Bootcamp",
+        "groups": [
+          {
+            "group": "Workshop",
+            "pages": [
+              "bootcamp/guide"
+            ]
+          }
+        ]
+      },
+      {
         "tab": "API Reference",
         "groups": [
           {
