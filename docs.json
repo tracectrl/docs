@@ -38,7 +38,8 @@
             "pages": [
               "introduction",
               "quickstart",
-              "architecture"
+              "architecture",
+              "agents"
             ]
           },
           {
