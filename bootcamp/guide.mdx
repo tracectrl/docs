@@ -84,135 +84,359 @@ graph LR
 
 # Part 2: Prerequisites
 
-Install all of the following **before** the bootcamp.
+Install all of the following **before** the bootcamp. Each tool has platform-specific instructions and a verification step at the end.
 
 ## Required Software
 
 ### Git
 
 <Card title="Git Downloads" icon="code-branch" href="https://git-scm.com/downloads">
-  Download and install Git for your platform.
+  Official Git downloads for all platforms.
 </Card>
 
+<Tabs>
+  <Tab title="macOS">
+    ```bash
+    # Option 1: Homebrew (recommended — no dialog popup)
+    brew install git
+
+    # Option 2: Xcode Command Line Tools
+    xcode-select --install
+    # A system dialog will appear — click Install and wait (~5 min).
+    ```
+  </Tab>
+  <Tab title="Ubuntu / Debian">
+    ```bash
+    sudo apt update && sudo apt install git
+    ```
+  </Tab>
+  <Tab title="Windows (WSL2)">
+    ```bash
+    # Run inside your WSL2 terminal (Ubuntu), not PowerShell
+    sudo apt update && sudo apt install git
+    ```
+  </Tab>
+  <Tab title="EC2 (Amazon Linux 2023)">
+    ```bash
+    sudo dnf install git -y
+    ```
+  </Tab>
+</Tabs>
+
+**Verify**
 ```bash
-# macOS
-xcode-select --install
-
-# Ubuntu/Debian
-sudo apt install git
-
-# Verify
 git --version
 ```
+Expected: `git version 2.x.x`
+
+<Warning>
+  **macOS**: If you used `xcode-select --install`, the system dialog must fully complete before `git` is available. Do not close it early.
+
+  **Windows**: Run all commands inside your WSL2 (Ubuntu) terminal, not PowerShell or Command Prompt.
+</Warning>
+
+---
 
 ### Python 3.10+
 
 <Card title="Python Downloads" icon="python" href="https://www.python.org/downloads/">
-  Download Python 3.12+ for your platform.
+  Official Python downloads — choose 3.12 or later.
 </Card>
 
+<Tabs>
+  <Tab title="macOS">
+    ```bash
+    brew install python@3.12
+
+    # If brew warns about PATH, add it:
+    echo 'export PATH="$(brew --prefix python@3.12)/bin:$PATH"' >> ~/.zshrc
+    source ~/.zshrc
+    ```
+  </Tab>
+  <Tab title="Ubuntu / Debian">
+    ```bash
+    sudo apt update && sudo apt install python3 python3-pip python3-venv
+    ```
+  </Tab>
+  <Tab title="Windows (WSL2)">
+    ```bash
+    # Inside WSL2 terminal
+    sudo apt update && sudo apt install python3 python3-pip python3-venv
+    ```
+  </Tab>
+  <Tab title="EC2 (Amazon Linux 2023)">
+    ```bash
+    # AL2023 ships Python 3.9 by default — install 3.12 explicitly:
+    sudo dnf install python3.12 python3.12-pip -y
+
+    # Confirm the version:
+    python3.12 --version
+    ```
+  </Tab>
+</Tabs>
+
+**Verify**
 ```bash
-# macOS
-brew install python@3.12
-
-# Ubuntu/Debian
-sudo apt install python3 python3-pip python3-venv
-
-# Verify
 python3 --version
 ```
+Expected: `Python 3.10.x` or higher
+
+<Warning>
+  **`python` vs `python3`**: On Ubuntu and EC2, `python` may point to Python 2 or not exist. Always use `python3` (or `python3.12` on AL2023). All bootcamp scripts use `python3`.
+
+  **pyenv users**: Run `pyenv version` to confirm the active version — pyenv takes precedence over system Python.
+
+  **EC2**: If `python3.12` is not available in dnf, `python3.11` also satisfies the `>= 3.10` requirement.
+</Warning>
+
+---
 
 ### Node.js 22+
 
 <Card title="Node.js Downloads" icon="node-js" href="https://nodejs.org/en/download">
-  Download Node.js 22 LTS.
+  Official Node.js downloads — choose the 22 LTS release.
 </Card>
 
+<Tabs>
+  <Tab title="macOS">
+    ```bash
+    # Option 1: Homebrew
+    brew install node
+
+    # Option 2: nvm (recommended if you manage multiple Node versions)
+    curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash
+    source ~/.zshrc
+    nvm install 22 && nvm use 22
+    ```
+  </Tab>
+  <Tab title="Ubuntu / Debian">
+    ```bash
+    # Option 1: NodeSource (system-wide install)
+    curl -fsSL https://deb.nodesource.com/setup_22.x | sudo -E bash -
+    sudo apt install -y nodejs
+
+    # Option 2: nvm
+    curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash
+    source ~/.bashrc
+    nvm install 22 && nvm use 22
+    ```
+  </Tab>
+  <Tab title="Windows (WSL2)">
+    ```bash
+    # Inside WSL2 — use nvm (avoids sudo permission issues)
+    curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash
+    source ~/.bashrc
+    nvm install 22 && nvm use 22
+    ```
+  </Tab>
+  <Tab title="EC2 (Amazon Linux 2023)">
+    ```bash
+    # Use nvm — AL2023's dnf Node package is too old
+    curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash
+    source ~/.bashrc
+    nvm install 22 && nvm use 22
+    ```
+  </Tab>
+</Tabs>
+
+**Verify**
 ```bash
-# macOS
-brew install node
-
-# Ubuntu/Debian
-curl -fsSL https://deb.nodesource.com/setup_22.x | sudo -E bash -
-sudo apt install -y nodejs
-
-# Verify
 node -v && npm -v
 ```
-
-### Docker Desktop
-
-<Card title="Docker Desktop" icon="docker" href="https://www.docker.com/products/docker-desktop/">
-  Download Docker Desktop for your platform.
-</Card>
-
-```bash
-# macOS
-brew install --cask docker
-
-# Ubuntu
-sudo apt install docker.io docker-compose-plugin
-sudo usermod -aG docker $USER
-
-# Verify
-docker --version && docker compose version
-```
+Expected: `v22.x.x` and `10.x.x`
 
 <Warning>
-  Make sure Docker Desktop is **running** before proceeding. On macOS, open it from Applications. It needs ~4 GB of RAM.
+  **nvm not in PATH**: After installing nvm, run `source ~/.bashrc` (Linux) or `source ~/.zshrc` (macOS) before `nvm` is usable. Opening a new terminal also works.
+
+  **Old Node still active**: If `node -v` shows `v14` or `v16` after installing nvm, run `nvm use 22` to switch the active version in that shell.
+
+  **Never use `sudo npm install -g`** when using nvm — nvm installs Node in your home directory and does not need elevated permissions for global packages.
 </Warning>
+
+---
+
+### Docker
+
+<Card title="Docker Desktop" icon="docker" href="https://www.docker.com/products/docker-desktop/">
+  Docker Desktop for macOS and Windows. Docker Engine for Linux and EC2.
+</Card>
+
+<Tabs>
+  <Tab title="macOS">
+    ```bash
+    # Option 1: Homebrew Cask
+    brew install --cask docker
+    # Open Docker.app from /Applications after installing.
+
+    # Option 2: Download directly from docker.com/products/docker-desktop/
+    ```
+
+    <Note>Docker Desktop must be **running** (whale icon in menu bar) before any `docker` command works. It needs ~4 GB of RAM.</Note>
+  </Tab>
+  <Tab title="Ubuntu / Debian">
+    ```bash
+    # Add Docker's official apt repository (more reliable than ubuntu's docker.io package)
+    sudo apt-get update
+    sudo apt-get install ca-certificates curl gnupg
+    sudo install -m 0755 -d /etc/apt/keyrings
+    curl -fsSL https://download.docker.com/linux/ubuntu/gpg | \
+      sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+    echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] \
+      https://download.docker.com/linux/ubuntu \
+      $(. /etc/os-release && echo "$VERSION_CODENAME") stable" | \
+      sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+    sudo apt-get update
+    sudo apt-get install docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin -y
+
+    # Add your user to the docker group so you don't need sudo
+    sudo usermod -aG docker $USER && newgrp docker
+    ```
+  </Tab>
+  <Tab title="Windows (WSL2)">
+    ```bash
+    # Recommended: Install Docker Desktop for Windows, then enable WSL Integration:
+    # Docker Desktop → Settings → Resources → WSL Integration → enable your distro
+    # Docker commands then work inside WSL2 automatically.
+
+    # Alternative: same official repo install as Ubuntu/Debian, inside WSL2 terminal:
+    sudo apt-get update
+    sudo apt-get install ca-certificates curl gnupg
+    sudo install -m 0755 -d /etc/apt/keyrings
+    curl -fsSL https://download.docker.com/linux/ubuntu/gpg | \
+      sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+    echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] \
+      https://download.docker.com/linux/ubuntu \
+      $(. /etc/os-release && echo "$VERSION_CODENAME") stable" | \
+      sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+    sudo apt-get update
+    sudo apt-get install docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin -y
+    sudo usermod -aG docker $USER && newgrp docker
+    ```
+  </Tab>
+  <Tab title="EC2 (Amazon Linux 2023)">
+    ```bash
+    sudo dnf install docker -y
+    sudo systemctl enable --now docker
+    sudo usermod -aG docker $USER
+    newgrp docker
+    ```
+  </Tab>
+</Tabs>
+
+**Verify**
+```bash
+docker --version && docker compose version
+```
+Expected: `Docker version 27.x.x` and `Docker Compose version v2.x.x`
+
+<Warning>
+  **macOS — daemon not running**: `Cannot connect to the Docker daemon` means Docker Desktop is installed but not started. Open it from Applications and wait for the whale icon.
+
+  **Linux — permission denied on socket**: You added yourself to the `docker` group but haven't started a new shell session. Run `newgrp docker` or log out and back in.
+
+  **WSL2 — Docker Desktop not running on Windows**: Docker commands in WSL2 proxy through Docker Desktop on the host. If Docker Desktop is closed on the Windows side, all `docker` commands inside WSL2 will fail.
+
+  **EC2 — group change not in effect**: `usermod -aG docker` only applies in new sessions. Run `newgrp docker` to avoid re-logging in.
+</Warning>
+
+---
 
 ### OpenClaw
 
-<Card title="OpenClaw Installation" icon="terminal" href="https://docs.openclaw.ai/install">
-  Full installation guide.
+<Card title="OpenClaw Documentation" icon="terminal" href="https://docs.openclaw.ai/install">
+  Full installation guide and platform requirements.
 </Card>
 
+<Tabs>
+  <Tab title="macOS">
+    ```bash
+    # Option 1: npm (requires Node.js 22+ from the previous step)
+    npm install -g openclaw
+
+    # Option 2: Homebrew
+    brew install openclaw
+    ```
+  </Tab>
+  <Tab title="Ubuntu / Debian">
+    ```bash
+    # Requires Node.js 22+ installed via nvm (previous step)
+    npm install -g openclaw
+    ```
+  </Tab>
+  <Tab title="Windows (WSL2)">
+    ```bash
+    # Inside WSL2 — requires nvm + Node 22 from previous step
+    npm install -g openclaw
+    ```
+  </Tab>
+  <Tab title="EC2 (Amazon Linux 2023)">
+    ```bash
+    # Requires nvm + Node 22 from previous step
+    npm install -g openclaw
+    ```
+  </Tab>
+</Tabs>
+
+**Verify**
 ```bash
-# npm (recommended)
-npm install -g openclaw
-
-# Or curl
-curl -fsSL https://get.openclaw.ai | bash
-
-# Or Homebrew (macOS)
-brew install openclaw
-
-# Verify
 openclaw --version
 ```
+Expected: `openclaw x.x.x`
 
-### AWS CLI (for Strands section)
+<Warning>
+  **Permission error (EACCES)**: If `npm install -g openclaw` fails with permission denied, you are using a system Node install instead of nvm. Go back to the Node.js step and install via nvm — it does not require sudo for global packages.
 
-<Card title="AWS CLI v2" icon="aws" href="https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html">
-  Install AWS CLI v2.
-</Card>
+  **Command not found after install**: Run `source ~/.bashrc` (or open a new terminal) to update your PATH.
 
-```bash
-# macOS
-brew install awscli
+  **Node version**: OpenClaw requires Node.js 22+. Confirm with `node -v` before installing.
+</Warning>
 
-# Verify
-aws --version
-```
+---
 
 ## Quick Verification
 
-Run this to check everything:
+Paste this into your terminal to check all prerequisites at once:
 
 ```bash
-echo "=== Bootcamp Prerequisites ==="
-git --version 2>/dev/null && echo "✓ Git" || echo "✗ Git MISSING"
-python3 --version 2>/dev/null && echo "✓ Python" || echo "✗ Python MISSING"
-node -v 2>/dev/null && echo "✓ Node.js" || echo "✗ Node.js MISSING"
-docker --version 2>/dev/null && echo "✓ Docker" || echo "✗ Docker MISSING"
-openclaw --version 2>/dev/null && echo "✓ OpenClaw" || echo "✗ OpenClaw MISSING"
-echo "==============================="
+echo "=== Bootcamp Prerequisites Check ==="
+
+git --version >/dev/null 2>&1 && echo "✓ Git: $(git --version)" || echo "✗ Git MISSING"
+
+if python3 -c "import sys; assert sys.version_info >= (3,10)" 2>/dev/null; then
+  echo "✓ Python: $(python3 --version) (>= 3.10)"
+else
+  echo "✗ Python MISSING or < 3.10 (found: $(python3 --version 2>/dev/null || echo 'not found'))"
+fi
+
+if node -e "process.exit(parseInt(process.versions.node) >= 22 ? 0 : 1)" 2>/dev/null; then
+  echo "✓ Node.js: $(node -v) (>= 22)"
+else
+  echo "✗ Node.js MISSING or < 22 (found: $(node -v 2>/dev/null || echo 'not found'))"
+fi
+
+docker info >/dev/null 2>&1 && echo "✓ Docker: $(docker --version)" || echo "✗ Docker MISSING or daemon not running"
+docker compose version >/dev/null 2>&1 && echo "✓ Docker Compose: $(docker compose version)" || echo "✗ Docker Compose v2 MISSING"
+openclaw --version >/dev/null 2>&1 && echo "✓ OpenClaw: $(openclaw --version)" || echo "✗ OpenClaw MISSING"
+
+echo "====================================="
 ```
 
 ## API Keys
 
-You'll need an **Anthropic API key** for the OpenClaw section. Ask the facilitator, or find it in the Notion document **"LLM Providers (API Keys)"**.
+You'll need an API key for an LLM provider to power your OpenClaw agent. Pick one from the options below — **Gemma via Google AI Studio is free** and works well for the bootcamp.
+
+| Provider | Free Tier | Sign Up |
+|---|---|---|
+| **Google AI Studio (Gemma 3 / Gemini)** | **Yes — free API key, no credit card** | [aistudio.google.com](https://aistudio.google.com) |
+| Anthropic (Claude) | No — requires billing | [console.anthropic.com](https://console.anthropic.com) |
+| OpenAI (GPT-4o) | No — requires billing | [platform.openai.com](https://platform.openai.com) |
+| Groq (Llama, Mixtral) | Yes — free tier available | [console.groq.com](https://console.groq.com) |
+
+<Note>
+  **Recommended for bootcamp**: Get a free Google AI Studio key. Go to [aistudio.google.com](https://aistudio.google.com), sign in with a Google account, and click **Get API key**. No credit card required.
+
+  If your organisation has an Anthropic or OpenAI key, the facilitator may provide one — check the Notion document **"LLM Providers (API Keys)"**.
+</Note>
 
 ---
 
