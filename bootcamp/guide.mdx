@@ -33,33 +33,67 @@ TraceCtrl has five components:
 
 ## Architecture
 
-```mermaid
-graph LR
-    subgraph Your Agent
-        A[Agent Code] -->|OTLP gRPC :4317| C
-        OC[OpenClaw] -->|OTLP HTTP :4318| C
-    end
+<Frame>
+  <div style={{ background: '#0D1117', padding: '28px 24px', borderRadius: '8px', fontFamily: 'system-ui, sans-serif' }}>
 
-    subgraph TraceCtrl Stack
-        C[OTel Collector] -->|ClickHouse Native :9000| DB[(ClickHouse)]
-        DB --> E[Engine API :8000]
-        E --> D[Dashboard :3000]
-    end
+    {/* Main pipeline row */}
+    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap', justifyContent: 'center' }}>
 
-    subgraph CLI Tools
-        CLI[tracectrl scan] -->|POST /api/v1/scans| E
-        FIX[tracectrl fix] -->|Auto-remediate| OC
-    end
+      {/* Data sources — stacked */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+        <div style={{ background: '#0F1C2E', border: '1px solid #4A90D9', borderRadius: '6px', padding: '10px 16px', textAlign: 'center', minWidth: '130px' }}>
+          <div style={{ fontSize: '11px', fontWeight: '700', color: '#4A90D9', letterSpacing: '0.06em' }}>AGENT CODE</div>
+          <div style={{ fontSize: '10px', color: '#4B5563', marginTop: '3px' }}>OTLP gRPC :4317</div>
+        </div>
+        <div style={{ background: '#1C0B14', border: '1px solid #FF6B9D', borderRadius: '6px', padding: '10px 16px', textAlign: 'center', minWidth: '130px' }}>
+          <div style={{ fontSize: '11px', fontWeight: '700', color: '#FF6B9D', letterSpacing: '0.06em' }}>OPENCLAW</div>
+          <div style={{ fontSize: '10px', color: '#4B5563', marginTop: '3px' }}>OTLP HTTP :4318</div>
+        </div>
+      </div>
 
-    style A fill:#4A90D9,color:#fff
-    style OC fill:#FF6B9D,color:#fff
-    style C fill:#8BC4BF,color:#000
-    style DB fill:#FFBB00,color:#000
-    style E fill:#A78BFA,color:#fff
-    style D fill:#22C55E,color:#000
-    style CLI fill:#FC0404,color:#fff
-    style FIX fill:#FC0404,color:#fff
-```
+      <div style={{ color: '#374151', fontSize: '18px', fontWeight: '300' }}>→</div>
+
+      <div style={{ background: '#091918', border: '1px solid #8BC4BF', borderRadius: '6px', padding: '10px 16px', textAlign: 'center', minWidth: '130px' }}>
+        <div style={{ fontSize: '11px', fontWeight: '700', color: '#8BC4BF', letterSpacing: '0.06em' }}>OTEL COLLECTOR</div>
+        <div style={{ fontSize: '10px', color: '#4B5563', marginTop: '3px' }}>:4317 / :4318</div>
+      </div>
+
+      <div style={{ color: '#374151', fontSize: '18px', fontWeight: '300' }}>→</div>
+
+      <div style={{ background: '#171200', border: '1px solid #FFBB00', borderRadius: '6px', padding: '10px 16px', textAlign: 'center', minWidth: '130px' }}>
+        <div style={{ fontSize: '11px', fontWeight: '700', color: '#FFBB00', letterSpacing: '0.06em' }}>CLICKHOUSE</div>
+        <div style={{ fontSize: '10px', color: '#4B5563', marginTop: '3px' }}>native :9000</div>
+      </div>
+
+      <div style={{ color: '#374151', fontSize: '18px', fontWeight: '300' }}>→</div>
+
+      <div style={{ background: '#0F0A1F', border: '1px solid #A78BFA', borderRadius: '6px', padding: '10px 16px', textAlign: 'center', minWidth: '130px' }}>
+        <div style={{ fontSize: '11px', fontWeight: '700', color: '#A78BFA', letterSpacing: '0.06em' }}>ENGINE API</div>
+        <div style={{ fontSize: '10px', color: '#4B5563', marginTop: '3px' }}>:8000</div>
+      </div>
+
+      <div style={{ color: '#374151', fontSize: '18px', fontWeight: '300' }}>→</div>
+
+      <div style={{ background: '#021A09', border: '1px solid #22C55E', borderRadius: '6px', padding: '10px 16px', textAlign: 'center', minWidth: '130px' }}>
+        <div style={{ fontSize: '11px', fontWeight: '700', color: '#22C55E', letterSpacing: '0.06em' }}>DASHBOARD</div>
+        <div style={{ fontSize: '10px', color: '#4B5563', marginTop: '3px' }}>:3000</div>
+      </div>
+    </div>
+
+    {/* CLI tools row */}
+    <div style={{ display: 'flex', justifyContent: 'center', gap: '12px', marginTop: '20px', paddingTop: '18px', borderTop: '1px solid #1F2937', flexWrap: 'wrap' }}>
+      <div style={{ background: '#1A0000', border: '1px solid #FC0404', borderRadius: '6px', padding: '8px 16px', textAlign: 'center' }}>
+        <div style={{ fontSize: '11px', fontWeight: '700', color: '#FC0404', letterSpacing: '0.06em' }}>tracectrl scan</div>
+        <div style={{ fontSize: '10px', color: '#4B5563', marginTop: '3px' }}>POST findings → Engine</div>
+      </div>
+      <div style={{ background: '#1A0000', border: '1px solid #FC0404', borderRadius: '6px', padding: '8px 16px', textAlign: 'center' }}>
+        <div style={{ fontSize: '11px', fontWeight: '700', color: '#FC0404', letterSpacing: '0.06em' }}>tracectrl fix</div>
+        <div style={{ fontSize: '10px', color: '#4B5563', marginTop: '3px' }}>auto-remediates OpenClaw config</div>
+      </div>
+    </div>
+
+  </div>
+</Frame>
 
 **How data flows:**
 
