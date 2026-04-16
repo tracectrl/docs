@@ -440,89 +440,7 @@ You'll need an API key for an LLM provider to power your OpenClaw agent. Pick on
 
 ---
 
-# Part 3: TraceCtrl Setup
-
-## Clone and Install
-
-```bash
-# Clone the repository
-git clone https://github.com/tracectrl/tracectrl.git
-cd tracectrl
-
-# Create a virtual environment
-python3 -m venv .venv
-source .venv/bin/activate
-
-# Install the CLI and Scanner
-pip install ./scanner
-pip install ./sdk/tracectrl
-
-# Verify
-tracectrl version
-```
-
-## Start the Stack
-
-```bash
-tracectrl setup
-```
-
-This launches the interactive setup wizard which guides you through configuration and starts the Docker containers.
-
-<Warning>
-  **Docker socket access**: `tracectrl setup` starts Docker containers and needs access to the Docker socket. If you see `permission denied while trying to connect to the Docker daemon socket`, your user is not yet in the `docker` group — go back to the Docker install step and run `newgrp docker` (or log out and back in).
-
-  **Do not run `sudo tracectrl setup`** (or `sudo su` before running it). When you elevate to root, `~` resolves to `/root/` instead of your home directory. Any path that was relative (like `~/.openclaw`) will silently point to the wrong location and the TUI will fail to find your OpenClaw workspace.
-</Warning>
-
-Alternatively, you can start containers directly:
-
-```bash
-docker compose up -d
-```
-
-This starts four containers:
-
-| Container | Port | Purpose |
-|-----------|------|---------|
-| `clickhouse` | 8123, 9000 | Span storage (ClickHouse database) |
-| `otel-collector` | 4317, 4318 | Receives OpenTelemetry spans |
-| `tracectrl-engine` | 8000 | Intelligence Engine (API + pipeline) |
-| `tracectrl-ui` | 3000 | Dashboard (React web app) |
-
-Wait ~30 seconds for all services to start, then verify:
-
-```bash
-tracectrl doctor
-```
-
-Expected output:
-
-```
-TraceCtrl Doctor
-
-  Services:
-    [OK]   Engine API (http://localhost:8000/api/v1/health)
-    [OK]   Dashboard UI (http://localhost:3000)
-    [OK]   OTel Collector (http://localhost:4318/v1/traces)
-
-  Docker:
-    [OK]   Docker is installed
-
-  All checks passed.
-```
-
-## Open the Dashboard
-
-Open [http://localhost:3000](http://localhost:3000) in your browser. You'll see the TraceCtrl dashboard — currently empty. We'll populate it in the next sections.
-
-<Check>
-  **Checkpoint**: `tracectrl doctor` shows all green. Dashboard loads at `localhost:3000`.
-</Check>
-
----
-
-# Part 4: OpenClaw Setup
+# Part 3: OpenClaw Setup
 
 ## What is OpenClaw?
 
@@ -556,7 +474,11 @@ After setup, your config lives at `~/.openclaw/openclaw.json` (or a custom path 
 ```bash
 openclaw configure
 ```
-The first line of output shows your workspace location. Copy the absolute path — for example `/home/yourname/.openclaw` — and use that wherever the docs reference `~/.openclaw`.
+The first line of output shows your workspace location. Copy the **absolute path** — for example `/home/yourname/.openclaw` — and use that wherever the docs reference `~/.openclaw`.
+
+<Warning>
+  **`~` changes under sudo**: If you ever run a command as a sudoer or with `sudo su`, `~` resolves to `/root/` — not your home directory. So `~/.openclaw` silently becomes `/root/.openclaw`, which doesn't exist. Always use the absolute path (e.g. `/home/yourname/.openclaw/`) when running any TraceCtrl command in an elevated shell. Run `openclaw configure` as your normal user to get it.
+</Warning>
 
 Here are the key sections:
 
@@ -642,6 +564,88 @@ If you set up Telegram, you can message your bot there instead.
 
 <Check>
   **Checkpoint**: You can chat with your agent via WebChat or Telegram. OpenClaw is running with diagnostics enabled.
+</Check>
+
+---
+
+# Part 4: TraceCtrl Setup
+
+## Clone and Install
+
+```bash
+# Clone the repository
+git clone https://github.com/tracectrl/tracectrl.git
+cd tracectrl
+
+# Create a virtual environment
+python3 -m venv .venv
+source .venv/bin/activate
+
+# Install the CLI and Scanner
+pip install ./scanner
+pip install ./sdk/tracectrl
+
+# Verify
+tracectrl version
+```
+
+## Start the Stack
+
+```bash
+tracectrl setup
+```
+
+This launches the interactive setup wizard which guides you through configuration and starts the Docker containers.
+
+<Warning>
+  **Docker socket access**: `tracectrl setup` starts Docker containers and needs access to the Docker socket. If you see `permission denied while trying to connect to the Docker daemon socket`, your user is not yet in the `docker` group — go back to the Docker install step and run `newgrp docker` (or log out and back in).
+
+  **Do not run `sudo tracectrl setup`** (or `sudo su` before running it). When you elevate to root, `~` resolves to `/root/` instead of your home directory. Any path that was relative (like `~/.openclaw`) will silently point to the wrong location and the TUI will fail to find your OpenClaw workspace.
+</Warning>
+
+Alternatively, you can start containers directly:
+
+```bash
+docker compose up -d
+```
+
+This starts four containers:
+
+| Container | Port | Purpose |
+|-----------|------|---------|
+| `clickhouse` | 8123, 9000 | Span storage (ClickHouse database) |
+| `otel-collector` | 4317, 4318 | Receives OpenTelemetry spans |
+| `tracectrl-engine` | 8000 | Intelligence Engine (API + pipeline) |
+| `tracectrl-ui` | 3000 | Dashboard (React web app) |
+
+Wait ~30 seconds for all services to start, then verify:
+
+```bash
+tracectrl doctor
+```
+
+Expected output:
+
+```
+TraceCtrl Doctor
+
+  Services:
+    [OK]   Engine API (http://localhost:8000/api/v1/health)
+    [OK]   Dashboard UI (http://localhost:3000)
+    [OK]   OTel Collector (http://localhost:4318/v1/traces)
+
+  Docker:
+    [OK]   Docker is installed
+
+  All checks passed.
+```
+
+## Open the Dashboard
+
+Open [http://localhost:3000](http://localhost:3000) in your browser. You'll see the TraceCtrl dashboard — currently empty. We'll populate it in the next sections.
+
+<Check>
+  **Checkpoint**: `tracectrl doctor` shows all green. Dashboard loads at `localhost:3000`.
 </Check>
 
 ---
