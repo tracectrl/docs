@@ -20,6 +20,7 @@
   },
   "topbar": {
     "style": "gradient",
+    "github": "https://github.com/tracectrl/tracectrl",
     "links": [
       {
         "name": "GitHub",
