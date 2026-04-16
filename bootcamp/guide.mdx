@@ -467,7 +467,15 @@ tracectrl version
 tracectrl setup
 ```
 
-This launches the interactive setup wizard which guides you through configuration and starts the Docker containers. Alternatively, you can start containers directly:
+This launches the interactive setup wizard which guides you through configuration and starts the Docker containers.
+
+<Warning>
+  **Docker socket access**: `tracectrl setup` starts Docker containers and needs access to the Docker socket. If you see `permission denied while trying to connect to the Docker daemon socket`, your user is not yet in the `docker` group — go back to the Docker install step and run `newgrp docker` (or log out and back in).
+
+  **Do not run `sudo tracectrl setup`** (or `sudo su` before running it). When you elevate to root, `~` resolves to `/root/` instead of your home directory. Any path that was relative (like `~/.openclaw`) will silently point to the wrong location and the TUI will fail to find your OpenClaw workspace.
+</Warning>
+
+Alternatively, you can start containers directly:
 
 ```bash
 docker compose up -d
@@ -542,7 +550,15 @@ The interactive wizard guides you through:
 
 ## Understand the Configuration
 
-After setup, your config lives at `~/.openclaw/openclaw.json`. Here are the key sections:
+After setup, your config lives at `~/.openclaw/openclaw.json` (or a custom path if you chose one during the wizard).
+
+**Not sure of your workspace path?** Run this in your normal user shell (not sudo):
+```bash
+openclaw configure
+```
+The first line of output shows your workspace location. Copy the absolute path — for example `/home/yourname/.openclaw` — and use that wherever the docs reference `~/.openclaw`.
+
+Here are the key sections:
 
 ```json
 {
@@ -634,13 +650,24 @@ If you set up Telegram, you can message your bot there instead.
 
 ## Run the Scan
 
+First, get your absolute workspace path — run this in your **normal user shell** (not as sudo):
+
 ```bash
-tracectrl scan ~/.openclaw/
+openclaw configure
+# The first line shows your workspace path, e.g. /home/yourname/.openclaw
 ```
 
-<Note>
-  If `~/.openclaw` is not your workspace path, run `openclaw configure` to find your actual workspace location, then substitute that path.
-</Note>
+Then run the scan using that absolute path:
+
+```bash
+tracectrl scan /home/yourname/.openclaw/
+```
+
+<Warning>
+  **Do not use `~` if you are running `tracectrl` as a sudoer or in a `sudo su` session.** In an elevated shell, `~` resolves to `/root/` — not your home directory — so `~/.openclaw` points to a path that doesn't exist and the scan will fail silently.
+
+  Always use the full absolute path (e.g. `/home/yourname/.openclaw/` or `/Users/yourname/.openclaw/`) when running scans from an elevated context. Run `openclaw configure` as your normal user to get the correct path.
+</Warning>
 
 The scanner reads your `openclaw.json`, runs **33 checks**, and uploads results to the dashboard.
 
@@ -860,7 +887,8 @@ Or use `openclaw configure` to reconfigure the provider with an env var.
 ## Re-scan After Manual Fixes
 
 ```bash
-tracectrl scan ~/.openclaw/
+# Use your absolute workspace path (same one from the scan step above)
+tracectrl scan /home/yourname/.openclaw/
 ```
 
 Refresh the dashboard — your findings should be significantly reduced.
