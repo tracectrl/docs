@@ -1107,6 +1107,79 @@ tracectrl version              # Print version
 tracectrl install-plugin       # Install the OpenClaw telemetry plugin
 ```
 
+## Cleanup & Uninstall
+
+When you're done with the bootcamp — or want a fresh start — work through these steps in order. They remove OpenClaw, its workspace, the TraceCtrl stack, and all local data.
+
+<Warning>
+  **These steps are destructive.** `rm -rf` on the workspace deletes your configured agents, chat history, and credentials. `docker compose down -v` deletes the ClickHouse volume — every trace and scan result you collected. Back up anything you want to keep first.
+</Warning>
+
+### 1. Stop the TraceCtrl stack
+
+From inside the `tracectrl` repo:
+
+```bash
+# Stop containers and remove the ClickHouse volume (deletes all traces and scans)
+docker compose down -v
+
+# If you only want to stop the containers but keep the data:
+# docker compose down
+```
+
+### 2. Uninstall OpenClaw
+
+Use the same method you used to install. If you're not sure, run `which openclaw` first — paths under `/opt/homebrew/` or `/usr/local/Cellar/` mean Homebrew; paths under `nvm` or `node_modules` mean npm.
+
+<Tabs>
+  <Tab title="macOS">
+    ```bash
+    # If installed via npm
+    npm uninstall -g openclaw
+
+    # If installed via Homebrew
+    brew uninstall openclaw
+
+    # Not sure which? Run both — the unused one will no-op.
+    ```
+  </Tab>
+  <Tab title="Ubuntu / Debian">
+    ```bash
+    npm uninstall -g openclaw
+    ```
+  </Tab>
+  <Tab title="Windows (WSL2)">
+    ```bash
+    # Run inside your WSL2 shell
+    npm uninstall -g openclaw
+    ```
+  </Tab>
+  <Tab title="EC2 (Amazon Linux 2023)">
+    ```bash
+    npm uninstall -g openclaw
+    ```
+  </Tab>
+</Tabs>
+
+**Verify the binary is gone:**
+```bash
+which openclaw || echo "openclaw removed"
+```
+
+### 3. Remove the OpenClaw workspace
+
+OpenClaw stores your agent config, chat history, and secrets in its workspace directory — usually `~/.openclaw`. Under `sudo` the home shortcut resolves to `/root/` instead of your user home, so double-check the path before deleting.
+
+```bash
+rm -rf ~/.openclaw
+```
+
+<Note>
+  If you installed OpenClaw as root (via `sudo npm install -g ...`), the workspace may live at `/root/.openclaw`. Run `sudo rm -rf /root/.openclaw` in that case.
+</Note>
+
+---
+
 ## Useful Links
 
 <CardGroup cols={2}>
