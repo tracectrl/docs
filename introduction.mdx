@@ -44,14 +44,14 @@ Spans flow through the OTel Collector into ClickHouse, where the TraceCtrl Engin
 
 ## Supported Frameworks
 
-| Framework | Package | Status |
-|-----------|---------|--------|
-| Agno | `tracectrl-instrumentation-agno` | Stable |
-| AWS Strands | `tracectrl-instrumentation-strands` | Stable |
-| OpenClaw | Native OTEL — no SDK needed | Beta |
-| LangChain / LangGraph | `tracectrl-instrumentation-langchain` | Beta |
-| CrewAI | `tracectrl-instrumentation-crewai` | Beta |
-| Google ADK | `tracectrl-instrumentation-google-adk` | Beta |
+| Framework | Package | Downloads | Status |
+|-----------|---------|-----------|--------|
+| Agno | `tracectrl-instrumentation-agno` | [![Downloads](https://img.shields.io/pypi/dm/tracectrl-instrumentation-agno?color=blue&label=)](https://pypistats.org/packages/tracectrl-instrumentation-agno) | Stable |
+| AWS Strands | `tracectrl-instrumentation-strands` | [![Downloads](https://img.shields.io/pypi/dm/tracectrl-instrumentation-strands?color=blue&label=)](https://pypistats.org/packages/tracectrl-instrumentation-strands) | Stable |
+| OpenClaw | Native OTEL — no SDK needed | — | Beta |
+| LangChain / LangGraph | `tracectrl-instrumentation-langchain` | — | Beta |
+| CrewAI | `tracectrl-instrumentation-crewai` | — | Beta |
+| Google ADK | `tracectrl-instrumentation-google-adk` | — | Beta |
 
 <Note>
   **Stable** = tested end-to-end in production. **Beta** = instrumentor exists and emits spans, but has not been validated in production workloads.
