@@ -44,18 +44,16 @@ Spans flow through the OTel Collector into ClickHouse, where the TraceCtrl Engin
 
 ## Supported Frameworks
 
-| Framework | Package | Downloads | Status |
-|-----------|---------|-----------|--------|
-| Agno | `tracectrl-instrumentation-agno` | [![Downloads](https://img.shields.io/pypi/dm/tracectrl-instrumentation-agno?color=blue&label=)](https://pypistats.org/packages/tracectrl-instrumentation-agno) | Stable |
-| AWS Strands | `tracectrl-instrumentation-strands` | [![Downloads](https://img.shields.io/pypi/dm/tracectrl-instrumentation-strands?color=blue&label=)](https://pypistats.org/packages/tracectrl-instrumentation-strands) | Stable |
-| OpenClaw | Native OTEL — no SDK needed | — | Beta |
-| LangChain / LangGraph | `tracectrl-instrumentation-langchain` | — | Beta |
-| CrewAI | `tracectrl-instrumentation-crewai` | — | Beta |
-| Google ADK | `tracectrl-instrumentation-google-adk` | — | Beta |
+| Framework | Package | Version | Downloads | Status |
+|-----------|---------|---------|-----------|--------|
+| Agno | `tracectrl-instrumentation-agno` | [![PyPI](https://img.shields.io/pypi/v/tracectrl-instrumentation-agno?color=blue&label=)](https://pypi.org/project/tracectrl-instrumentation-agno/) | [![Downloads](https://img.shields.io/pypi/dm/tracectrl-instrumentation-agno?color=blue&label=)](https://pypistats.org/packages/tracectrl-instrumentation-agno) | Stable |
+| AWS Strands | `tracectrl-instrumentation-strands` | [![PyPI](https://img.shields.io/pypi/v/tracectrl-instrumentation-strands?color=blue&label=)](https://pypi.org/project/tracectrl-instrumentation-strands/) | [![Downloads](https://img.shields.io/pypi/dm/tracectrl-instrumentation-strands?color=blue&label=)](https://pypistats.org/packages/tracectrl-instrumentation-strands) | Stable |
+| OpenClaw | Native OTEL — no SDK needed | — | — | Stable |
 
 <Note>
-  **Stable** = tested end-to-end in production. **Beta** = instrumentor exists and emits spans, but has not been validated in production workloads.
+  **Stable** = tested end-to-end in production.
   OpenClaw uses its native OTEL export — no TraceCtrl SDK needed. See the [OpenClaw instrumentor guide](/instrumentors/openclaw).
+  LangChain, CrewAI, and Google ADK instrumentors are in development — coming soon.
 </Note>
 
 ## Next Steps
