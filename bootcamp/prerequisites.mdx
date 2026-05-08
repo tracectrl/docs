@@ -1,0 +1,326 @@
+---
+title: "Prerequisites"
+description: "System requirements, software, and API keys to set up before the TraceCtrl bootcamp. Complete this before the session."
+---
+
+<Info>
+  **Complete this before the bootcamp.** Run the verification script at the bottom and confirm all green before arriving.
+</Info>
+
+---
+
+## System Requirements
+
+### Hardware
+
+| Resource | Minimum | Recommended |
+|----------|---------|-------------|
+| **RAM** | 8 GB | 16 GB |
+| **CPU** | 2 cores | 4 cores |
+| **Free Disk** | 5 GB | 10 GB |
+| **OS** | macOS 12+, Ubuntu 20.04+, Windows 10/11 (WSL2) | |
+
+### Why the Memory Bar Is High
+
+The four Docker containers each have different resource profiles:
+
+| Container | Image Size | Runtime RAM | Role |
+|-----------|-----------|-------------|------|
+| `clickhouse` | 805 MB | 2–4 GB | Column-oriented database — buffers data in memory for fast analytical queries |
+| `otel-collector` | 328 MB | 128–256 MB | Receives, batches, and forwards OpenTelemetry spans |
+| `tracectrl-engine` | 226 MB | 256–512 MB | FastAPI app running the TAGAAI analysis pipeline |
+| `tracectrl-ui` | 63 MB | 64–128 MB | Static React dashboard served by nginx |
+| **Total** | **~1.4 GB download** | **~2.5–5 GB at runtime** | Plus Docker overhead and host OS |
+
+ClickHouse is the dominant cost — it is a production-grade OLAP database designed to hold millions of spans in memory for fast queries. On an 8 GB machine you have roughly 3–4 GB headroom after the full stack is running, which is sufficient for the workshop.
+
+<Warning>
+  **Docker/Rancher memory cap.** Docker Desktop and Rancher Desktop default to a 4–6 GB memory limit for the Linux VM. ClickHouse may OOM-kill if that cap is too low.
+
+  Go to **Settings → Resources → Memory** and set it to at least **6 GB** before starting the stack.
+</Warning>
+
+---
+
+## Software Prerequisites
+
+### 1. Container Runtime
+
+AISG uses **Rancher Desktop** instead of Docker Desktop due to licensing policies. Both work with TraceCtrl — `tracectrl setup` detects which is present automatically.
+
+<Tabs>
+  <Tab title="Rancher Desktop (AISG / Corporate)">
+    <Card title="Rancher Desktop" icon="box" href="https://rancherdesktop.io">
+      Free and open-source. Recommended for AISG environments.
+    </Card>
+
+    1. Download and install Rancher Desktop from [rancherdesktop.io](https://rancherdesktop.io)
+    2. On first launch, choose **Container Engine: dockerd (moby)** — this gives you the standard `docker` and `docker compose` CLI
+    3. Under **Kubernetes**, you can disable it (not needed for TraceCtrl)
+    4. Go to **Settings → Resources → Memory** and set it to at least **6 GB**
+
+    ```bash
+    # Verify
+    docker --version && docker compose version
+    ```
+
+    <Note>
+      If your Rancher Desktop is already configured with the **containerd** engine, use `nerdctl compose` in place of `docker compose` everywhere in the bootcamp. `tracectrl setup` detects this automatically and uses `nerdctl` if `docker` is not found.
+    </Note>
+  </Tab>
+  <Tab title="Docker Desktop (Personal / macOS)">
+    <Card title="Docker Desktop" icon="docker" href="https://www.docker.com/products/docker-desktop/">
+      Requires a paid subscription for large teams.
+    </Card>
+
+    ```bash
+    # macOS — Homebrew
+    brew install --cask docker
+    # Open Docker.app from /Applications after installing.
+    ```
+
+    Or download directly from [docker.com/products/docker-desktop](https://www.docker.com/products/docker-desktop/).
+
+    After installing, go to **Settings → Resources → Memory** and set it to at least **6 GB**.
+
+    ```bash
+    # Verify
+    docker --version && docker compose version
+    ```
+  </Tab>
+  <Tab title="Docker Engine (Linux / EC2)">
+    ```bash
+    # Ubuntu / Debian / WSL2
+    sudo apt-get update
+    sudo apt-get install ca-certificates curl gnupg -y
+    sudo install -m 0755 -d /etc/apt/keyrings
+    curl -fsSL https://download.docker.com/linux/ubuntu/gpg | \
+      sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+    echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] \
+      https://download.docker.com/linux/ubuntu \
+      $(. /etc/os-release && echo "$VERSION_CODENAME") stable" | \
+      sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+    sudo apt-get update
+    sudo apt-get install docker-ce docker-ce-cli containerd.io \
+      docker-buildx-plugin docker-compose-plugin -y
+    sudo usermod -aG docker $USER && newgrp docker
+    ```
+
+    ```bash
+    # Amazon Linux 2023 (EC2)
+    sudo dnf install docker -y
+    sudo systemctl enable --now docker
+    sudo usermod -aG docker $USER && newgrp docker
+    ```
+
+    ```bash
+    # Verify
+    docker --version && docker compose version
+    ```
+  </Tab>
+</Tabs>
+
+Expected output:
+```
+Docker version 27.x.x
+Docker Compose version v2.x.x
+```
+
+<Warning>
+  **macOS — daemon not running:** `Cannot connect to the Docker daemon` means Rancher Desktop or Docker Desktop is installed but not started. Open it from Applications and wait for the icon to turn green/active.
+
+  **Linux — permission denied on socket:** Run `newgrp docker` or log out and back in after adding yourself to the docker group.
+</Warning>
+
+---
+
+### 2. Python 3.10+
+
+<Tabs>
+  <Tab title="macOS">
+    ```bash
+    brew install python@3.12
+    # Add to PATH if brew warns:
+    echo 'export PATH="$(brew --prefix python@3.12)/bin:$PATH"' >> ~/.zshrc
+    source ~/.zshrc
+    ```
+  </Tab>
+  <Tab title="Ubuntu / Debian / WSL2">
+    ```bash
+    sudo apt update && sudo apt install python3 python3-pip python3-venv -y
+    ```
+  </Tab>
+  <Tab title="EC2 (Amazon Linux 2023)">
+    ```bash
+    sudo dnf install python3.12 python3.12-pip -y
+    ```
+  </Tab>
+</Tabs>
+
+**Verify:** `python3 --version` → `Python 3.10.x` or higher
+
+---
+
+### 3. Git
+
+<Tabs>
+  <Tab title="macOS">
+    ```bash
+    brew install git
+    ```
+  </Tab>
+  <Tab title="Ubuntu / Debian / WSL2">
+    ```bash
+    sudo apt update && sudo apt install git -y
+    ```
+  </Tab>
+  <Tab title="EC2 (Amazon Linux 2023)">
+    ```bash
+    sudo dnf install git -y
+    ```
+  </Tab>
+</Tabs>
+
+**Verify:** `git --version` → `git version 2.x.x`
+
+---
+
+### 4. Strands Agents
+
+The bootcamp uses [AWS Strands](https://strandsagents.com) — an open-source agent SDK. Install the core package and the built-in tools library:
+
+```bash
+pip install strands-agents strands-agents-tools
+```
+
+**Verify:**
+```bash
+python3 -c "import strands; print('strands', strands.__version__)"
+```
+
+<Warning>
+  Run this inside the same virtual environment you'll use for the workshop. If you're using `venv`, activate it first: `source .venv/bin/activate`.
+</Warning>
+
+<Tip>
+  **Want to get a head start?** Try one of the examples from [strandsagents.com/docs/examples](https://strandsagents.com/docs/examples/) before the workshop — even 10 minutes building a basic agent will make the instrumentation step click much faster on the day. Pick anything that catches your eye: a chat agent, a tool-using agent, or a multi-agent example.
+</Tip>
+
+---
+
+## API Key: Google AI Studio (Free, No Credit Card)
+
+The bootcamp uses **Gemma 4 31B** via Google AI Studio. It is completely free — no billing setup required.
+
+### Free Tier Rate Limits
+
+| Limit | Value |
+|-------|-------|
+| Requests per minute (RPM) | 15 |
+| Tokens per minute (TPM) | Unlimited |
+| Requests per day (RPD) | 1,500 |
+
+These limits are sufficient for the bootcamp. View your own limits anytime under **Rate Limit** in the AI Studio sidebar.
+
+<Frame>
+  <img src="/images/google-ai-studio-rate-limits.png" alt="Gemini API Rate Limit page showing Gemma 4 31B free tier: 15 RPM, unlimited TPM, 1.5K RPD" />
+</Frame>
+
+### Step 1 — Create the Key
+
+1. Go to [aistudio.google.com](https://aistudio.google.com) and sign in with any Google account
+2. Click **Get API key** in the left sidebar (or **API Keys** if already signed in)
+3. Click **Create API key** (top right)
+4. Select or accept the **Default Gemini Project**
+5. Your key appears in the list. Click the **copy icon** (highlighted below) to copy it to your clipboard
+
+<Frame>
+  <img src="/images/google-ai-studio-api-keys.png" alt="Google AI Studio API Keys page — the copy button is highlighted in red on the right side of the key row" />
+</Frame>
+
+The key starts with `AIza...`. The **Billing Tier** column shows **Free tier** — no payment is needed for the bootcamp.
+
+### Step 2 — Test the Key
+
+Paste this into your terminal (replace `YOUR_API_KEY_HERE`):
+
+```bash
+curl "https://generativelanguage.googleapis.com/v1beta/models/gemma-4-31b-it:generateContent" \
+  -H 'Content-Type: application/json' \
+  -H 'X-goog-api-key: YOUR_API_KEY_HERE' \
+  -X POST \
+  -d '{
+    "contents": [
+      {
+        "parts": [
+          {
+            "text": "What tools do you have access to?"
+          }
+        ]
+      }
+    ]
+  }'
+```
+
+Expected: a JSON response containing `candidates[0].content.parts[0].text`. If you see a `400` or `403` error, the key was not copied correctly — return to AI Studio and copy it again.
+
+<Warning>
+  **Never commit your API key to git.** Always use environment variables — never paste the key directly into code files.
+</Warning>
+
+---
+
+## Pull Docker Images Ahead of Time
+
+**Do this before the session.** The images total ~1.4 GB — venue WiFi may be slow.
+
+```bash
+docker pull ghcr.io/tracectrl/tracectrl-engine:latest
+docker pull ghcr.io/tracectrl/tracectrl-ui:latest
+docker pull clickhouse/clickhouse-server:latest
+docker pull otel/opentelemetry-collector-contrib:latest
+```
+
+Or after cloning the repo:
+
+```bash
+git clone https://github.com/tracectrl/tracectrl.git
+cd tracectrl
+make pull
+```
+
+---
+
+## Full Verification
+
+Run this before the session. All six lines should show `✓`.
+
+```bash
+echo "=== TraceCtrl Bootcamp Prerequisites Check ==="
+
+git --version >/dev/null 2>&1 \
+  && echo "✓ Git: $(git --version)" \
+  || echo "✗ Git MISSING"
+
+python3 -c "import sys; assert sys.version_info >= (3,10)" 2>/dev/null \
+  && echo "✓ Python: $(python3 --version)" \
+  || echo "✗ Python MISSING or < 3.10 (found: $(python3 --version 2>/dev/null || echo 'not found'))"
+
+docker info >/dev/null 2>&1 \
+  && echo "✓ Docker: $(docker --version)" \
+  || echo "✗ Docker daemon not running — start Rancher Desktop or Docker Desktop"
+
+docker compose version >/dev/null 2>&1 \
+  && echo "✓ Docker Compose: $(docker compose version)" \
+  || echo "✗ Docker Compose v2 MISSING"
+
+python3 -c "import strands" 2>/dev/null \
+  && echo "✓ Strands: $(python3 -c 'import strands; print(strands.__version__)')" \
+  || echo "✗ strands-agents MISSING — run: pip install strands-agents strands-agents-tools"
+
+[ -n "$GOOGLE_API_KEY" ] \
+  && echo "✓ GOOGLE_API_KEY is set" \
+  || echo "✗ GOOGLE_API_KEY not set — see API Key section above"
+
+echo "=============================================="
+```

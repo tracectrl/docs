@@ -84,7 +84,13 @@
         "tab": "Bootcamp",
         "groups": [
           {
-            "group": "Workshop",
+            "group": "Prerequisites",
+            "pages": [
+              "bootcamp/prerequisites"
+            ]
+          },
+          {
+            "group": "Workshop (OpenClaw)",
             "pages": [
               "bootcamp/guide"
             ]
