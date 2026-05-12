@@ -328,8 +328,8 @@ docker compose version >/dev/null 2>&1 \
   && echo "✓ Docker Compose: $(docker compose version)" \
   || echo "✗ Docker Compose v2 MISSING"
 
-python3 -c "from importlib.metadata import version; v = version('strands-agents')" 2>/dev/null \
-  && echo "✓ Strands: $(python3 -c 'from importlib.metadata import version; print(version(\"strands-agents\"))')" \
+python3 -c "from importlib.metadata import version; version('strands-agents')" 2>/dev/null \
+  && echo "✓ Strands: $(python3 -c "from importlib.metadata import version; print(version('strands-agents'))")" \
   || echo "✗ strands-agents MISSING — run: pip install strands-agents strands-agents-tools"
 
 echo "=============================================="
