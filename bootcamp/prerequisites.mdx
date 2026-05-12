@@ -195,7 +195,7 @@ pip install strands-agents strands-agents-tools
 
 **Verify:**
 ```bash
-python3 -c "import strands; print('strands', strands.__version__)"
+python3 -c "from importlib.metadata import version; print('strands-agents', version('strands-agents'))"
 ```
 
 <Warning>
@@ -274,6 +274,16 @@ Expected: a JSON response containing `candidates[0].content.parts[0].text`. If y
 
 **Do this before the session.** The images total ~1.4 GB — venue WiFi may be slow.
 
+<Warning>
+  **Start your container runtime first.** Docker Desktop or Rancher Desktop must be running before any `docker pull` will work. On first launch, Rancher Desktop takes 2–3 minutes to provision its Linux VM — wait for the container icon in the bottom status bar to go green.
+
+  Sanity check:
+  ```bash
+  docker info | head -5
+  ```
+  If you see `Cannot connect to the Docker daemon`, the runtime is not up yet — open Rancher Desktop / Docker Desktop and wait.
+</Warning>
+
 ```bash
 docker pull ghcr.io/tracectrl/tracectrl-engine:latest
 docker pull ghcr.io/tracectrl/tracectrl-ui:latest
@@ -281,7 +291,7 @@ docker pull clickhouse/clickhouse-server:latest
 docker pull otel/opentelemetry-collector-contrib:latest
 ```
 
-Or after cloning the repo:
+Or after cloning the repo (run from the repo root):
 
 ```bash
 git clone https://github.com/tracectrl/tracectrl.git
@@ -289,11 +299,15 @@ cd tracectrl
 make pull
 ```
 
+<Note>
+  **`make: *** No rule to make target 'pull'`?** You're either not in the repo root (`cd tracectrl` first), or your clone predates the `pull` target — run `git pull origin main` to update.
+</Note>
+
 ---
 
 ## Full Verification
 
-Run this before the session. All six lines should show `✓`.
+Run this before the session. All five lines should show `✓`. The API key is not checked here — keep it in your password manager and load it into your shell during the workshop.
 
 ```bash
 echo "=== TraceCtrl Bootcamp Prerequisites Check ==="
@@ -314,13 +328,9 @@ docker compose version >/dev/null 2>&1 \
   && echo "✓ Docker Compose: $(docker compose version)" \
   || echo "✗ Docker Compose v2 MISSING"
 
-python3 -c "import strands" 2>/dev/null \
-  && echo "✓ Strands: $(python3 -c 'import strands; print(strands.__version__)')" \
+python3 -c "from importlib.metadata import version; v = version('strands-agents')" 2>/dev/null \
+  && echo "✓ Strands: $(python3 -c 'from importlib.metadata import version; print(version(\"strands-agents\"))')" \
   || echo "✗ strands-agents MISSING — run: pip install strands-agents strands-agents-tools"
-
-[ -n "$GOOGLE_API_KEY" ] \
-  && echo "✓ GOOGLE_API_KEY is set" \
-  || echo "✗ GOOGLE_API_KEY not set — see API Key section above"
 
 echo "=============================================="
 ```
