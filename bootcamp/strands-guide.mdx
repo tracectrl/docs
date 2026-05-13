@@ -538,19 +538,75 @@ Click any violation to see the full evidence panel: the exact input that was che
 
 ---
 
-# Part 5: OpenClaw Demo (Time Permitting)
+# Bonus: Scan an OpenClaw Workspace
 
-## 5.1 OpenClaw Scan Using TraceCtrl
+<Info>
+  **Fully optional, OpenClaw users only.** Skip this section if you don't already have an OpenClaw workspace running. The OpenClaw attack walkthrough and hardening flow are demonstrated **in person** during the workshop — this section just covers the scan step so you can follow along on your own setup.
+</Info>
 
-> **TODO:** Brief OpenClaw intro (link to full [OpenClaw bootcamp](/bootcamp/guide)). Run `tracectrl scan` against an OpenClaw workspace and show the findings + risk topology in the dashboard.
+[OpenClaw](https://docs.openclaw.ai) is a self-hosted AI agent gateway (LLM ↔ messaging channels, with config-driven tool access and session management). TraceCtrl ships a static scanner for OpenClaw configs that runs 30+ security/ops/compliance checks against `openclaw.json` and uploads the findings to the dashboard.
 
-## 5.2 Demonstration of Hack
+## Enable Diagnostics
 
-> **TODO:** Demonstrate exploitation of one of the CRITICAL findings (e.g. exposed gateway + dangerous tools + plaintext credentials → credential exfiltration).
+If your OpenClaw is already running, add the OTel exporter to `~/.openclaw/openclaw.json` so runtime spans flow to TraceCtrl alongside the scan:
 
-## 5.3 Hardening
+```json
+{
+  "plugins": { "allow": ["diagnostics-otel"] },
+  "diagnostics": {
+    "enabled": true,
+    "otel": {
+      "enabled": true,
+      "endpoint": "http://localhost:4318",
+      "protocol": "http/protobuf",
+      "serviceName": "openclaw-gateway",
+      "traces": true
+    }
+  }
+}
+```
 
-> **TODO:** Run `tracectrl fix --auto`, apply manual fixes for SSRF / sandbox / session isolation, and rescan. Show the dashboard going from red to green.
+```bash
+openclaw gateway restart
+```
+
+## Run the Scan
+
+```bash
+# Get your absolute workspace path (run as your normal user, not sudo)
+openclaw configure        # first line of output prints the path
+
+# Then scan
+tracectrl scan /Users/you/.openclaw/
+```
+
+<Warning>
+  Don't use `~/.openclaw/` if you're scanning from a `sudo` shell — `~` resolves to `/root/` under elevation. Use the absolute path from `openclaw configure`.
+</Warning>
+
+The scanner reads `openclaw.json`, runs the check suite, and uploads results. Terminal output gives you the severity counts and a findings table; the dashboard gives you the full picture.
+
+## View the Scan Report
+
+Open [http://localhost:3000/scan](http://localhost:3000/scan):
+
+<Frame>
+  <img src="/images/openclaw-scan-report.png" alt="TraceCtrl Scan Report page for an OpenClaw workspace. Top: risk topology graph with Anthropic LLM node visible. Filters: All (13 OPEN), Security (8 OPEN), Operational (2 OPEN), Compliance (3 OPEN). Severity tabs: All / Critical / High / Medium. Findings grouped by category — Advanced Security shows OC-SEC-002 (CRITICAL: No dangerous override flags enabled), OC-SEC-004 (HIGH: Agent sandbox is enabled), OC-SEC-005 (HIGH: Browser SSRF policy blocks private networks). Credentials shows OC-CRED-001 (HIGH: No plaintext API keys in configuration). Guardrails & Prompt Injection shows two MEDIUM findings (OC-GUARD-001, OC-GUARD-002)." />
+</Frame>
+
+Three things to notice on the report:
+
+1. **Risk topology at the top** — every agent, tool, LLM, skill, extension, scheduler, and sub-agent in your OpenClaw config, coloured by the highest-severity finding attached to it.
+2. **Category filters** (Advanced Security, Credentials, Guardrails & Prompt Injection, Operational, Compliance) — each finding has a stable ID (`OC-SEC-002`, `OC-CRED-001`, etc.) so the same hardening recommendations track across rescans.
+3. **Rescan button** (top-right of the findings header) — re-runs the scan in place after you've edited the config. No CLI round-trip needed.
+
+## What's Next (in person)
+
+The live workshop covers the OpenClaw hack — exploiting one of the CRITICAL findings end-to-end to prove the prediction — followed by `tracectrl fix --auto` plus manual hardening to take the report from red to green. If you want to read ahead, the full walkthrough lives in the [OpenClaw bootcamp guide](/bootcamp/guide).
+
+<Check>
+  **Checkpoint:** `tracectrl scan` ran successfully against your OpenClaw workspace, and the Scan Report page shows findings grouped by category with a risk-coloured topology at the top.
+</Check>
 
 ---
 
