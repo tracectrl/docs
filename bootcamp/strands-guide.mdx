@@ -222,7 +222,26 @@ cd tracectrl-bootcamp-examples
 | Example | Topology | What it does |
 |---------|----------|--------------|
 | `research_workflow_example/` | 3-agent chain: **Researcher → Analyst → Writer** | Web research / fact-checking. Researcher uses `http_request`, hands off via tool-call to Analyst, which hands off to Writer. |
-| `teacher_assistants_workflow_example/` | 1 orchestrator + 5 specialists | **TeachAssist** routes student queries to **MathWizard**, **EnglishMaster**, **LanguageAssistant**, **ComputerScienceExpert**, or **GeneralAssist**. |
+| `teacher_assistants_workflow_example/` | Star: 1 orchestrator → 4 specialists | **TeachAssist** routes student queries to **MathWizard**, **EnglishMaster**, **LanguageAssistant**, or **GeneralAssist**. |
+
+Here's what each topology looks like in the TraceCtrl dashboard after running:
+
+<Tabs>
+  <Tab title="research_workflow_example">
+    <Frame>
+      <img src="/images/topology.png" alt="TraceCtrl Topology view for research_workflow_example: three hexagonal agent nodes — Researcher, Analyst, Writer — connected by 'delegates' edges in a linear chain. Researcher has a 'uses' edge down to the http_request tool (green square node)." />
+    </Frame>
+
+    A linear 3-agent chain. `Researcher` is the entry point — it fetches web sources via `http_request`, then hands off to `Analyst`, which hands off to `Writer`. Each hand-off is a `@tool` function call, which is why TraceCtrl draws `delegates` edges between the agents rather than treating them as a flat list.
+  </Tab>
+  <Tab title="teacher_assistants_workflow_example">
+    <Frame>
+      <img src="/images/topology4.png" alt="TraceCtrl Topology view for teacher_assistants_workflow_example: TeachAssist at center connected by 'delegates' edges to four specialist agents — MathWizard, EnglishMaster, LanguageAssistant, and GeneralAssist — forming a star shape." />
+    </Frame>
+
+    A star topology. `TeachAssist` sits at the center and delegates to one specialist per query. The star builds up progressively — each new routing decision adds one more edge. Run four different queries (math, general, English, language) and you'll see all four arms appear one by one in the dashboard.
+  </Tab>
+</Tabs>
 
 Each example folder is self-contained — its own README, `.env`, runner script, and Python files.
 
@@ -237,7 +256,7 @@ Both examples are self-contained: `.env` for credentials, `run_agents_workflow.s
     cp .env.example .env
     ```
 
-    Edit `.env`:
+    Edit `.env` — **only `GOOGLE_API_KEY` needs to change.** Everything else is pre-filled with working defaults:
 
     ```env
     GOOGLE_API_KEY=your_google_ai_studio_key
@@ -247,12 +266,6 @@ Both examples are self-contained: `.env` for credentials, `run_agents_workflow.s
     TRACECTRL_SERVICE_NAME=agents-workflow
     TRACECTRL_ENVIRONMENT=demo
     ```
-
-    Then:
-
-    ```bash
-    chmod +x run_agents_workflow.sh
-    ```
   </Tab>
   <Tab title="teacher_assistants_workflow_example">
     ```bash
@@ -260,7 +273,7 @@ Both examples are self-contained: `.env` for credentials, `run_agents_workflow.s
     cp .env.example .env
     ```
 
-    Edit `.env`:
+    Edit `.env` — **only `GOOGLE_API_KEY` needs to change.** Everything else is pre-filled with working defaults:
 
     ```env
     GOOGLE_API_KEY=your_google_ai_studio_key
@@ -269,12 +282,6 @@ Both examples are self-contained: `.env` for credentials, `run_agents_workflow.s
     TRACECTRL_ENDPOINT=http://localhost:4317
     TRACECTRL_SERVICE_NAME=teachers-assistant
     TRACECTRL_ENVIRONMENT=demo
-    ```
-
-    Then:
-
-    ```bash
-    chmod +x run_agents_workflow.sh
     ```
   </Tab>
 </Tabs>
@@ -318,10 +325,14 @@ tag_agent(researcher_agent)
 Three things to notice:
 
 1. **`StrandsInstrumentor().instrument()`** patches the Strands SDK so every agent invocation, LLM call, and tool call emits an OpenTelemetry span. No per-agent boilerplate.
-2. **`tag_agent(...)`** attaches the agent's name and role to its spans. Without it, agents show up as generic nodes — `Researcher` would just be "agent #1" on the topology graph.
+2. **`tag_agent(...)`** attaches the agent's name and role to its spans, and — crucially — is what makes the **topology edges appear**. In both examples, agents hand off to each other by calling a `@tool` function that creates a new `Agent` and calls `tag_agent()` on it. When TraceCtrl sees that pattern, it knows the outer agent delegated to the inner one and draws a `delegates` edge between them in the topology graph. Without `tag_agent(...)`, agents show up as unnamed generic nodes with no relationships — you'd see a flat list instead of a Researcher → Analyst → Writer chain or a TeachAssist → MathWizard star.
 3. **OTLP gRPC on `:4317`.** This is the OpenTelemetry Collector that ships with the TraceCtrl stack from Part 2. The Engine reads from it, the Dashboard reads from the Engine.
 
 ### Run the Example
+
+<Warning>
+  **TraceCtrl must be running before you start the agents.** The script sends spans to the OTel Collector on `localhost:4317`. If TraceCtrl is not up, the agents will still run and produce output — but nothing will appear in the dashboard. Run `tracectrl doctor` to confirm all services are green before continuing.
+</Warning>
 
 <Tabs>
   <Tab title="research_workflow_example">
@@ -329,29 +340,50 @@ Three things to notice:
     bash run_agents_workflow.sh
     ```
 
-    First run creates a venv and installs `strands-agents[gemini]`, `strands-agents-tools`, `tracectrl`, and `tracectrl-instrumentation-strands` from PyPI. At the prompt, try one of these:
+    The first run creates a venv and installs `strands-agents[gemini]`, `strands-agents-tools`, `tracectrl`, and `tracectrl-instrumentation-strands` from PyPI — this takes about a minute. **Subsequent runs reuse the venv and skip the install**, so they start in a few seconds.
+
+    At the prompt, try these in order — start with the short one first to confirm everything is wired up before running a longer query:
 
     ```
-    > What are quantum computers?
-    > Lemon cures cancer
     > Tuesday comes before Monday in the week
+    > Lemon cures cancer
+    > What are quantum computers?
     ```
 
-    Type `exit` to quit.
+    Each prompt creates a new trace in TraceCtrl. Type `exit` to quit.
   </Tab>
   <Tab title="teacher_assistants_workflow_example">
     ```bash
     bash run_agents_workflow.sh
     ```
 
-    First run creates a venv and installs dependencies. At the prompt, try a query in any subject — TeachAssist will route it:
+    The first run creates a venv and installs dependencies — about a minute. **Subsequent runs reuse the venv and skip the install.**
+
+    Run these four prompts **in order**, then open [http://localhost:3000/topology](http://localhost:3000/topology) after each one to watch the star topology build up edge by edge:
 
     ```
-    > What is the derivative of x squared?
-    > Translate "good morning" to Japanese
-    > Explain recursion with an example in Python
-    > What is the theme of Romeo and Juliet?
+    > What is 1 + 1?
     ```
+    Routes to **MathWizard** — first edge appears: TeachAssist → MathWizard.
+
+    ```
+    > Define Apple
+    ```
+    Routes to **GeneralAssist** — second edge: TeachAssist → GeneralAssist.
+
+    ```
+    > Write me a poem
+    ```
+    Routes to **EnglishMaster** — third edge: TeachAssist → EnglishMaster.
+
+    ```
+    > Translate hello to French
+    ```
+    Routes to **LanguageAssistant** — full four-arm star now visible.
+
+    <Note>
+      **No Computer Science specialist.** The system prompt mentions one, but it is not implemented. CS or coding questions (e.g. "explain recursion") will be handled by **GeneralAssist** instead.
+    </Note>
 
     Type `exit` to quit.
   </Tab>
@@ -392,7 +424,7 @@ Open [http://localhost:3000/topology](http://localhost:3000/topology). Each exam
 | Example | Shape | Risk surface |
 |---------|-------|--------------|
 | `research_workflow_example` | Linear 3-agent chain | `Researcher` → external **network** (`http_request`) is the only external edge; downstream agents are read-only over context. |
-| `teacher_assistants_workflow_example` | Star: 1 orchestrator → 5 specialists | `ComputerScienceExpert` typically pulls in code-execution-class tools; `TeachAssist` itself uses `file_read` / `file_write` / `editor`. |
+| `teacher_assistants_workflow_example` | Star: 1 orchestrator → 4 specialists | `EnglishMaster` pulls in `file_read` / `file_write` / `editor`; `LanguageAssistant` uses `http_request`. `GeneralAssist` handles anything that doesn't fit a specialist . |
 
 If you ran both, the topology accumulates — you'll see two disconnected sub-graphs in the same dashboard, which is exactly what you'd see in production when multiple agentic services share one TraceCtrl deployment.
 
@@ -455,7 +487,7 @@ These are concrete starting points — each takes ~20 lines of Python and slots 
   <Tab title="teacher_assistants_workflow_example">
     **`pii_in_query_guard`** — pre-input on `TeachAssist`. Fail if a student's question contains what looks like PII (email, phone, full name + address) — common when kids paste from somewhere else.
 
-    **`code_execution_safety_guard`** — post-output on `ComputerScienceExpert`. Fail if the generated code contains `os.system`, `subprocess`, `eval`, `exec`, or `rm -rf` patterns. The agent is supposed to teach, not run shell.
+    **`code_execution_safety_guard`** — post-output on `GeneralAssist` (which handles CS and coding questions). Fail if the generated code contains `os.system`, `subprocess`, `eval`, `exec`, or `rm -rf` patterns. The agent is supposed to teach, not run shell.
 
     **`scope_guard`** — post-output on every specialist. Fail if `MathWizard` answers an English question, etc. Catches mis-routing and prompt-injection routing hijacks.
   </Tab>
