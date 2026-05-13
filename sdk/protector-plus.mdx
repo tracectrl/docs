@@ -1,0 +1,130 @@
+---
+title: "Protector Plus"
+description: "External LLM firewall integration via tracectrl.guard()"
+---
+
+## Overview
+
+Protector Plus is Cloudsine's managed LLM firewall. Where SDK [Guardrails](/sdk/guardrails) run your own LLM-judge prompts, Protector Plus runs a managed pipeline of seven sub-checks (prompt-injection LLM judge, keyword/regex/PII detectors, vector similarity, content moderation, system-prompt leak detection) against every input and output you send it.
+
+Use SDK guardrails for bespoke business rules ("never authorise payments over $10k without manager approval"). Use Protector Plus when you want a hosted firewall managed in one place from the TraceCtrl Settings page.
+
+## Configuration flow
+
+1. Configure your Protector Plus deployment (endpoint URL, API key, which sub-guardrails are enabled) inside the Protector Plus UI.
+2. In the TraceCtrl dashboard, open **Settings** (`/settings`) and paste the Protector Plus endpoint URL and API key. Toggle the sub-guardrails you want active.
+3. On `guard()` entry, the SDK fetches that configuration from the engine and wires its background worker. No code changes are needed when operators toggle a sub-guardrail on or off — the change picks up within ~60s on the next `guard()` entry.
+
+The engine endpoint the SDK calls is `GET /api/v1/guardrails/protector-config/sdk` on `TRACECTRL_API_URL` (defaults to `http://localhost:8000`).
+
+## Usage
+
+```python
+import tracectrl
+from tracectrl import guard, check_input, check_output
+
+tracectrl.configure(service_name="finflow")
+
+with guard():
+    user_msg = "Pay invoice INV-203 for $4,500 to ACME Ltd."
+    check_input(user_msg)
+    response = my_agent(user_msg)
+    check_output(str(response))
+```
+
+`guard()` is a context manager. On entry it:
+- Fetches Protector Plus config from the engine (60-second cache).
+- Starts a single daemon background worker thread.
+- Emits one `tracectrl.guardrail.registered` span per enabled sub-guardrail so the dashboard's registry picks them up immediately.
+
+There is no teardown — the worker thread is process-lifetime, so calls outside the scope still work. The context manager's role is to lazily configure the runner and register guardrails against the currently-active agent.
+
+## Asynchronous semantics
+
+`check_input` and `check_output` return a `GuardrailVerdict` **immediately** with `flagged=False`. The actual POST to Protector Plus happens on the background worker; when it completes the verdict's fields are populated.
+
+This is deliberate — Protector Plus's LLM judge adds ~1.6s per call and the SDK never blocks the wrapped LLM by default.
+
+Callers that need synchronous gating must explicitly wait:
+
+```python
+verdict = check_input(prompt).wait(timeout=2.0)
+if verdict.flagged:
+    return "blocked"
+```
+
+`bool(verdict)` is always `True` — don't use truthy checks. Always read `.flagged` after `.wait()`.
+
+## `GuardrailVerdict`
+
+```python
+from tracectrl import GuardrailVerdict
+```
+
+| Field | Type | Notes |
+|-------|------|-------|
+| `flagged` | `bool` | `True` if Protector Plus's umbrella `injection_detected` is `True`. Stub `False` until the POST returns. |
+| `execution_time_ms` | `int \| None` | Wall time of the Protector Plus round-trip. `None` until the POST returns. |
+| `scores` | `dict[str, Any]` | The full `checks` block from the Protector Plus response — per-sub-guardrail scores, thresholds, entities. |
+| `error` | `str \| None` | Populated when the POST fails (HTTP error, timeout, queue overflow, missing config). |
+| `wait(timeout=2.0)` | method | Blocks until the verdict is filled in. Returns `self` for chaining. |
+
+## Supported sub-guardrails
+
+The seven checks Protector Plus runs, in canonical display order:
+
+| Key | Description |
+|-----|-------------|
+| `llm` | Prompt-injection scoring via a Protector Plus LLM judge (`llama4:scout`). Flagged when `score >= threshold` (default 0.7). |
+| `keyword` | Exact keyword/phrase blocklist match. |
+| `regex` | Regex pattern match against configured patterns. |
+| `pii` | NER-based PII detection — names, emails, phone numbers, IC/passport, credit cards. |
+| `vector` | Semantic similarity to known injection patterns via `bge-m3` + ChromaDB. Threshold-gated. |
+| `content_moderation` | Harmful content classification via `Qwen3Guard-4B`. Flagged when `result == "UNSAFE"`. |
+| `system_prompt_protection` | Detects responses that leak the system prompt. Runs on output only. |
+
+Each registered sub-guardrail appears in the dashboard as `protector_plus.<key>` so its alerts and registry rows are distinguishable from your own custom guardrails.
+
+## Endpoints
+
+The SDK POSTs to two paths on the configured Protector Plus root:
+
+| Phase | Path |
+|-------|------|
+| Input check | `POST /apikey/api/protectorplus/v1/input-check` |
+| Output check | `POST /apikey/api/protectorplus/v1/output-check` |
+
+Request body: `{"message": "<text>"}`. Header: `X-API-Key: <your key>`. Timeout: 5 seconds.
+
+## Span attributes emitted
+
+For every sub-guardrail that runs on a `check_input` / `check_output` call, the SDK emits a `tracectrl.guardrail.evaluation` span (child of the OTel context captured at the call site):
+
+| Attribute | Description |
+|-----------|-------------|
+| `tracectrl.guardrail.name` | `protector_plus.<key>`. |
+| `tracectrl.guardrail.decision` | `"pass"`, `"fail"`, or `"error"`. |
+| `tracectrl.guardrail.provider` | Always `"protector_plus"`. |
+| `tracectrl.guardrail.judge_model` | `protector_plus:<key>`. |
+| `tracectrl.guardrail.severity` | `"high"` for `llm`, `system_prompt_protection`, `content_moderation`, `pii`; `"medium"` otherwise. |
+| `tracectrl.guardrail.timing` | `"pre_input"` or `"post_output"` matching the call. |
+| `tracectrl.guardrail.reason` | Human-readable summary (score, matched terms, detected entities). |
+| `tracectrl.guardrail.evidence` | The submitted message, truncated to 2048 chars. |
+| `tracectrl.guardrail.response_json` | Full per-check response JSON (threshold, entities, etc.), capped at 8KB. |
+| `tracectrl.guardrail.evaluated_at` | UTC ISO timestamp. |
+| `tracectrl.agent.id` / `tracectrl.agent.name` | Resolved from the active span or the service name fallback. |
+
+Transport errors (Protector Plus unreachable, HTTP 5xx, timeout) emit one `decision="error"` span named `protector_plus.transport` so outages surface as degraded health rather than silent drops.
+
+Registration spans (`tracectrl.guardrail.registered`) emitted on `guard()` entry carry the same fields described in [Guardrails](/sdk/guardrails#span-attributes-emitted), plus `tracectrl.guardrail.provider = "protector_plus"` and `tracectrl.guardrail.mode = "monitoring"`.
+
+## Failure modes
+
+| Symptom | Cause |
+|---------|-------|
+| `verdict.error == "no config"` | Operator hasn't pasted the Protector Plus endpoint + API key in Settings yet. The check no-ops. |
+| `verdict.error == "dropped: queue full"` | More than 1000 checks pending. Backpressure — reduce check frequency. |
+| `verdict.error` starts with `HTTP ` | Protector Plus returned an HTTP error. Inspect the message; check API key validity and endpoint URL. |
+| `verdict.wait()` returns without `flagged` set | Protector Plus timed out (>5s) or the worker thread crashed; the verdict's `error` field will be populated. |
+
+{/* Sources: tracectrl/sdk/tracectrl/src/tracectrl/protector.py, tracectrl/sdk/tracectrl/src/tracectrl/__init__.py */}
