@@ -228,7 +228,7 @@ Each example folder is self-contained — its own README, `.env`, runner script,
 
 ### Setup
 
-The examples share one prerequisite outside the repo: the **TraceCtrl SDK cloned locally** (the runner script installs it from a path you provide rather than from PyPI, since the SDK is pre-release). If you cloned `tracectrl` in Part 2 you already have this.
+Both examples are self-contained: `.env` for credentials, `run_agents_workflow.sh` to create the venv and install everything from PyPI ([`tracectrl`](https://pypi.org/project/tracectrl/), [`tracectrl-instrumentation-strands`](https://pypi.org/project/tracectrl-instrumentation-strands/), `strands-agents[gemini]`, `strands-agents-tools`).
 
 <Tabs>
   <Tab title="research_workflow_example">
@@ -246,12 +246,6 @@ The examples share one prerequisite outside the repo: the **TraceCtrl SDK cloned
     TRACECTRL_ENDPOINT=http://localhost:4317
     TRACECTRL_SERVICE_NAME=agents-workflow
     TRACECTRL_ENVIRONMENT=demo
-    ```
-
-    Edit `run_agents_workflow.sh` and replace `<PATH_TO_TRACECTRL_SDK>` with the absolute path to your local `tracectrl` SDK clone (the folder that contains the `tracectrl/` and `tracectrl-instrumentation-strands/` packages):
-
-    ```bash
-    TRACECTRL_SDK="/Users/you/code/tracectrl/sdk"
     ```
 
     Then:
@@ -275,12 +269,6 @@ The examples share one prerequisite outside the repo: the **TraceCtrl SDK cloned
     TRACECTRL_ENDPOINT=http://localhost:4317
     TRACECTRL_SERVICE_NAME=teachers-assistant
     TRACECTRL_ENVIRONMENT=demo
-    ```
-
-    Edit `run_agents_workflow.sh` and replace `<PATH_TO_TRACECTRL_SDK>` with the absolute path to your local `tracectrl` SDK clone:
-
-    ```bash
-    TRACECTRL_SDK="/Users/you/code/tracectrl/sdk"
     ```
 
     Then:
@@ -341,7 +329,7 @@ Three things to notice:
     bash run_agents_workflow.sh
     ```
 
-    First run creates a venv and installs `strands-agents[gemini]`, `strands-agents-tools`, and the local TraceCtrl SDK. At the prompt, try one of these:
+    First run creates a venv and installs `strands-agents[gemini]`, `strands-agents-tools`, `tracectrl`, and `tracectrl-instrumentation-strands` from PyPI. At the prompt, try one of these:
 
     ```
     > What are quantum computers?
@@ -371,13 +359,17 @@ Three things to notice:
 
 ### View the Traces
 
-Open [http://localhost:3000/sessions](http://localhost:3000/sessions). You'll see a new session row tagged with your `TRACECTRL_SERVICE_NAME`. Click it to expand the trace tree:
+Open [http://localhost:3000/sessions](http://localhost:3000/sessions). You'll see a new session row tagged with your `TRACECTRL_SERVICE_NAME` (`agents-workflow` for research, `teachers-assistant` for teacher). Click the row to expand the trace tree. Three span kinds:
 
-- **Agent spans** — one per `tag_agent(...)` agent; nested when one agent calls another via a tool
-- **LLM spans** — one per Gemini call, with prompt, response, and token counts
-- **Tool spans** — one per `@tool` invocation, with arguments and results
+- **Agent span** — emitted per `tag_agent(...)` agent; nests when one agent calls another via a `@tool` hand-off
+- **LLM span** — one per Gemini call, with prompt, response, and token counts
+- **Tool span** — one per `@tool` invocation, with arguments and results
 
-For the research example, you'll see a 3-level nesting: `Researcher → call_analyst (tool) → Analyst → call_writer (tool) → Writer`. That nesting is what gives the topology its edges in 3.3.
+Click any span to see its detail panel (timing, attributes, input/output values).
+
+<Info>
+  Per-example Sessions screenshots will be added here once both examples have been run end-to-end — the exact trace tree layout depends on the prompt and which specialists / sources the agent picks.
+</Info>
 
 ### What TraceCtrl Captures
 
