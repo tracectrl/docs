@@ -92,9 +92,10 @@
             ]
           },
           {
-            "group": "Workshop (OpenClaw)",
+            "group": "Workshop",
             "pages": [
-              "bootcamp/guide"
+              "bootcamp/guide",
+              "bootcamp/strands-guide"
             ]
           }
         ]

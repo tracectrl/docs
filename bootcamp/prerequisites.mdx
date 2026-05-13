@@ -210,7 +210,7 @@ python3 -c "from importlib.metadata import version; print('strands-agents', vers
 
 ## API Key: Google AI Studio (Free, No Credit Card)
 
-The bootcamp uses **Gemma 4 31B** via Google AI Studio. It is completely free â€” no billing setup required.
+The bootcamp uses **Gemini 3.1 Flash Lite (Preview)** via Google AI Studio. It is completely free â€” no billing setup required.
 
 ### Free Tier Rate Limits
 
@@ -223,7 +223,7 @@ The bootcamp uses **Gemma 4 31B** via Google AI Studio. It is completely free â€
 These limits are sufficient for the bootcamp. View your own limits anytime under **Rate Limit** in the AI Studio sidebar.
 
 <Frame>
-  <img src="/images/google-ai-studio-rate-limits.png" alt="Gemini API Rate Limit page showing Gemma 4 31B free tier: 15 RPM, unlimited TPM, 1.5K RPD" />
+  <img src="/images/google-ai-studio-rate-limits.png" alt="Gemini API Rate Limit page showing Gemini 3.1 Flash Lite Preview free tier: 15 RPM, unlimited TPM, 1.5K RPD" />
 </Frame>
 
 ### Step 1 â€” Create the Key
@@ -245,7 +245,7 @@ The key starts with `AIza...`. The **Billing Tier** column shows **Free tier** â
 Paste this into your terminal (replace `YOUR_API_KEY_HERE`):
 
 ```bash
-curl "https://generativelanguage.googleapis.com/v1beta/models/gemma-4-31b-it:generateContent" \
+curl "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite-preview:generateContent" \
   -H 'Content-Type: application/json' \
   -H 'X-goog-api-key: YOUR_API_KEY_HERE' \
   -X POST \
