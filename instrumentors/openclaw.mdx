@@ -1,27 +1,96 @@
 ---
 title: "OpenClaw"
-description: "Trace OpenClaw gateway sessions with native OTEL export"
+description: "Trace OpenClaw gateway sessions with TraceCtrl"
 ---
 
 ## Overview
 
 [OpenClaw](https://openclaw.ai) is a self-hosted AI messaging gateway that bridges chat platforms (WhatsApp, Telegram, Discord, Slack, iMessage, etc.) to AI agents.
 
-OpenClaw natively exports OpenTelemetry traces — **no TraceCtrl SDK needed**. You just point its OTEL export at your TraceCtrl collector and spans flow automatically.
+There are two ways to get OpenClaw traces into TraceCtrl. Pick one:
 
-## What Gets Traced
+| Path | What it gives you | When to use |
+|------|-------------------|-------------|
+| **TraceCtrl plugin** (`@tracectrl/openclaw-plugin`) | Rich spans — message content, tool I/O, security findings, token metrics, session lifecycle | Recommended. Powers topology, trace explorer, and risk scoring. |
+| **Built-in `diagnostics-otel`** | Shallow operational spans only (model usage, message processed, webhook events) | Use when you can't install the TraceCtrl plugin. |
 
-| Span | Type | What It Captures |
-|------|------|-----------------|
-| `openclaw.model.usage` | LLM | Model, provider, token counts (input/output/cache), session ID |
-| `openclaw.message.processed` | Agent | Channel, outcome, chat ID, message ID, session ID |
-| `openclaw.webhook.processed` | Tool | Channel, webhook handler, chat ID |
-| `openclaw.webhook.error` | Tool (Error) | Channel, webhook, error details |
-| `openclaw.session.stuck` | Alert | Session state, age, queue depth |
+## Recommended: TraceCtrl plugin
 
-TraceCtrl automatically maps these to its agent/tool/LLM schema — each channel (WhatsApp, Telegram, etc.) becomes an agent node in the topology, and model usage becomes LLM edges.
+The `tracectrl` CLI installs and configures the plugin into your local OpenClaw install.
 
-## Setup
+<Steps>
+  <Step title="Install the plugin">
+    ```bash
+    tracectrl install-plugin --configure
+    ```
+
+    This copies the plugin to `~/.openclaw/extensions/tracectrl`, runs `npm install` and `npm run build`, then enables it in `~/.openclaw/openclaw.json`. Pass `--path /custom/openclaw` if your OpenClaw root is elsewhere, and `--endpoint http://host:4318` to override the collector URL.
+  </Step>
+
+  <Step title="Restart the gateway">
+    ```bash
+    openclaw gateway restart
+    ```
+  </Step>
+
+  <Step title="Verify">
+    ```bash
+    tracectrl doctor
+    ```
+
+    The doctor command checks both that the plugin is installed and that it is enabled in `openclaw.json`.
+  </Step>
+</Steps>
+
+The resulting `openclaw.json` block looks like this:
+
+```json
+{
+  "plugins": {
+    "allow": ["tracectrl"],
+    "entries": {
+      "tracectrl": {
+        "enabled": true,
+        "config": {
+          "endpoint": "http://localhost:4318",
+          "serviceName": "openclaw-gateway",
+          "captureContent": true
+        }
+      }
+    }
+  }
+}
+```
+
+### Plugin config options
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `endpoint` | string | `http://localhost:4318` | OTLP collector endpoint |
+| `serviceName` | string | `openclaw-gateway` | Service name for traces |
+| `captureContent` | boolean | `false` | Capture message text and tool I/O (privacy-sensitive) |
+| `protocol` | `"http"` \| `"grpc"` | `"http"` | OTLP transport protocol |
+| `traces` | boolean | `true` | Enable trace export |
+| `metrics` | boolean | `true` | Enable metric export |
+| `metricsIntervalMs` | number | `30000` | Metric export interval |
+| `headers` | object | `{}` | Additional HTTP headers for the OTLP exporter |
+
+### What the plugin captures
+
+| Hook | Span | Key attributes |
+|------|------|----------------|
+| `message_received` | `tracectrl.request` (root) | channel, session key, direction, message text |
+| `before_agent_start` | `tracectrl.agent.turn` | agent ID, model |
+| `tool_result_persist` | `tracectrl.tool.{name}` | tool name, call ID, input preview, result size, errors |
+| `agent_end` | (closes agent + root) | token usage (input/output/cache), duration, model |
+| `command:new/reset/stop` | `tracectrl.session.{action}` | action, session key |
+| `gateway:startup` | `tracectrl.gateway.startup` | version, PID |
+
+The plugin also flags dangerous tools (bash/shell/exec), dangerous commands (`rm -rf`, `sudo`, reverse shells, piped curl), sensitive file access (`.env`, private keys, `/etc/passwd`), and prompt-injection patterns. Findings are recorded under `tracectrl.security.*` span attributes and counted by the `tracectrl.security.events` metric.
+
+## Alternative: built-in `diagnostics-otel`
+
+If you can't install the TraceCtrl plugin, OpenClaw ships its own OTLP exporter. Spans are shallower but the wiring is the same.
 
 <Steps>
   <Step title="Enable the diagnostics-otel plugin">
@@ -59,28 +128,29 @@ TraceCtrl automatically maps these to its agent/tool/LLM schema — each channel
     ```
 
     <Note>
-      OpenClaw exports via **OTLP/HTTP** (port 4318), not gRPC (4317). TraceCtrl's OTel Collector accepts both protocols.
+      OpenClaw exports via **OTLP/HTTP** (port 4318), not gRPC (4317).
     </Note>
   </Step>
 
-  <Step title="Restart the gateway">
+  <Step title="Restart and verify">
     ```bash
     openclaw gateway restart
-    ```
-  </Step>
-
-  <Step title="Verify in TraceCtrl">
-    Spans appear within 5 seconds. Open the dashboard and select `openclaw-gateway` from the project dropdown.
-
-    ```bash
-    tracectrl doctor   # Verify stack is running
-    curl http://localhost:8000/api/v1/projects
-    # Should include "openclaw-gateway"
+    tracectrl doctor
     ```
   </Step>
 </Steps>
 
-## Recommended Settings
+### What `diagnostics-otel` captures
+
+| Span | Type | What It Captures |
+|------|------|------------------|
+| `openclaw.model.usage` | LLM | Model, provider, token counts (input/output/cache), session ID |
+| `openclaw.message.processed` | Agent | Channel, outcome, chat ID, message ID, session ID |
+| `openclaw.webhook.processed` | Tool | Channel, webhook handler, chat ID |
+| `openclaw.webhook.error` | Tool (Error) | Channel, webhook, error details |
+| `openclaw.session.stuck` | Alert | Session state, age, queue depth |
+
+### Recommended settings
 
 | Setting | Dev | Production | Why |
 |---------|-----|------------|-----|
@@ -88,39 +158,18 @@ TraceCtrl automatically maps these to its agent/tool/LLM schema — each channel
 | `flushIntervalMs` | `5000` | `60000` | 5s for near-real-time debugging, 60s to reduce overhead |
 | `traces` | `true` | `true` | Required for all TraceCtrl views |
 | `metrics` | `false` | `false` | Not processed by TraceCtrl yet (silently dropped) |
-| `logs` | `false` | `false` | High volume, not processed yet |
+| `logs` | `false` | `false` | Not processed by TraceCtrl yet (silently dropped) |
 
-## What You'll See
+## Protocol notes
 
-### Topology
+- OpenClaw's built-in exporter supports **OTLP/HTTP (protobuf) only** — gRPC is not supported.
+- The TraceCtrl plugin supports both `http` and `grpc` via its `protocol` config option.
+- The endpoint should be the HTTP port (`:4318`), not gRPC (`:4317`), unless you've explicitly enabled gRPC ingest.
+- TraceCtrl's engine currently consumes traces only. Metrics and logs sent to the collector are accepted but not surfaced in the dashboard.
 
-Each chat channel becomes an agent node connected to the LLM models it uses:
+## Environment variables
 
-```
-[openclaw-whatsapp] ──webhook──→ [claude-sonnet-4-6]
-[openclaw-telegram] ──webhook──→ [gpt-4o]
-[openclaw-discord]  ──webhook──→ [gemini-2.5-pro]
-```
-
-### Sessions
-
-Each `openclaw.message.processed` span appears as a session row showing channel, outcome, duration, and nested LLM calls.
-
-### Risk
-
-- `openclaw.session.stuck` spans trigger risk alerts
-- `openclaw.webhook.error` spans tracked as error rates
-- Webhook error patterns surface in attack path analysis
-
-## Protocol Notes
-
-- OpenClaw supports **OTLP/HTTP (protobuf) only** — gRPC is not supported
-- The endpoint should be the HTTP port (`:4318`), not gRPC (`:4317`)
-- Metrics and logs are also exported if enabled, but TraceCtrl only processes traces currently — other signals are silently dropped with no errors
-
-## Environment Variables
-
-You can also configure OTEL export via environment variables instead of the JSON config file:
+Both paths honour the standard OTEL environment variables, which override the JSON config:
 
 ```bash
 OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4318
@@ -131,4 +180,5 @@ OTEL_EXPORTER_OTLP_PROTOCOL=http/protobuf
 ## Reference
 
 - [OpenClaw Logging & OTEL docs](https://docs.openclaw.ai/logging)
-- [TraceCtrl OpenClaw Integration Plan](/docs/openclaw-integration-plan.md)
+
+{/* Sources: plugins/openclaw-tracectrl/README.md, plugins/openclaw-tracectrl/openclaw.plugin.json, sdk/tracectrl/src/tracectrl/cli.py (cmd_install_plugin at line 146; install-plugin subparser at line 794), engine/main.py (no metrics/logs ingest path) */}

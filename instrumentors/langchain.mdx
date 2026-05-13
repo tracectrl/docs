@@ -5,28 +5,39 @@ description: "Instrument LangChain and LangGraph agents with TraceCtrl"
 
 ## Installation
 
+`tracectrl` is on PyPI. The LangChain instrumentor is not yet published — install it from the source tree.
+
 ```bash
-pip install -e ./sdk/tracectrl
-pip install -e ./sdk/tracectrl-instrumentation-langchain
+pip install tracectrl
+pip install ./sdk/tracectrl-instrumentation-langchain
 ```
+
+<Note>
+  PyPI publication of `tracectrl-instrumentation-langchain` is pending. Until then, install from a local checkout or via `pip install git+https://github.com/cloudsine/tracectrl.git#subdirectory=sdk/tracectrl-instrumentation-langchain`.
+</Note>
 
 ## Usage
 
 ```python
 import tracectrl
-tracectrl.configure(service_name="my-langchain-agent")
-
+from tracectrl import tag_agent
 from tracectrl.instrumentation.langchain import LangChainInstrumentor
+
+tracectrl.configure(service_name="my-langchain-agent")
 LangChainInstrumentor().instrument()
 
-# Your LangChain code — no changes needed
 from langchain_openai import ChatOpenAI
 from langchain.agents import create_openai_tools_agent, AgentExecutor
 
 llm = ChatOpenAI(model="gpt-4o")
 # ... define tools, prompt, agent
+agent_executor = AgentExecutor(agent=agent, tools=tools)
+tag_agent(agent_executor)
+
 agent_executor.invoke({"input": "Summarize my latest emails"})
 ```
+
+Call `tag_agent(agent_executor)` (or, for LangGraph, on the compiled graph) so the agent identity propagates onto every span the run produces.
 
 ## What Gets Captured
 
@@ -48,7 +59,8 @@ from langgraph.graph import StateGraph
 graph = StateGraph(MyState)
 graph.add_node("researcher", researcher_node)
 graph.add_node("writer", writer_node)
-# Each node creates spans that TraceCtrl enriches
+compiled = graph.compile()
+tag_agent(compiled)
 ```
 
 ## API
@@ -60,9 +72,11 @@ graph.add_node("writer", writer_node)
 </ParamField>
 
 <ParamField path="uninstrument" type="method">
-  `uninstrument()` — Shuts down processors and unwraps the instrumentor.
+  `uninstrument()` — Shuts down the TraceCtrl processor and unwraps the OpenInference instrumentor.
 </ParamField>
 
 <ParamField path="instrumented" type="bool">
   Whether the instrumentor is currently active.
 </ParamField>
+
+{/* Sources: sdk/tracectrl-instrumentation-langchain/src/tracectrl/instrumentation/langchain/instrumentor.py, sdk/tracectrl/src/tracectrl/__init__.py:14, PyPI 404 for tracectrl-instrumentation-langchain as of 2026-05 */}

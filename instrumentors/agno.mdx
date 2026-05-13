@@ -5,39 +5,44 @@ description: "Instrument Agno agents with TraceCtrl"
 
 ## Installation
 
+Both packages are published to PyPI.
+
 ```bash
-pip install -e ./sdk/tracectrl
-pip install -e ./sdk/tracectrl-instrumentation-agno
+pip install tracectrl tracectrl-instrumentation-agno
 ```
 
 ## Usage
 
 ```python
 import tracectrl
-tracectrl.configure(service_name="my-agno-agent")
-
+from tracectrl import tag_agent
 from tracectrl.instrumentation.agno import AgnoInstrumentor
+
+tracectrl.configure(service_name="my-agno-agent")
 AgnoInstrumentor().instrument()
 
-# Your Agno code
 from agno.agent import Agent
 
 agent = Agent(model="gpt-4o", tools=[...])
+tag_agent(agent)
+
 agent.run("Analyze this document")
 ```
 
+`tag_agent(agent)` stamps the agent's identity onto subsequent spans so it shows up as a distinct node in TraceCtrl's topology view.
+
 ## What Gets Captured
 
-Agno provides rich agent metadata out of the box. TraceCtrl maps Agno-specific attributes:
+Agno emits agent identity attributes natively. TraceCtrl's span processor reads them and re-stamps them under the TraceCtrl schema:
 
-| Agno Attribute | TraceCtrl Attribute | Purpose |
-|---------------|---------------------|---------|
-| `agno.agent.id` | `tracectrl.agent.id` | Agent identity |
-| `agent.name` | `tracectrl.agent.name` | Human-readable name |
-| `agno.team.id` | `tracectrl.agent.id` (fallback) | Team-level identity |
-| `session.id` | `tracectrl.session_id` (fallback) | Agno session correlation |
+| Source attribute | TraceCtrl attribute | Notes |
+|------------------|---------------------|-------|
+| `agno.agent.id` | `tracectrl.agent.id` | Primary agent identity |
+| `agno.team.id` | `tracectrl.agent.id` | Fallback when `agno.agent.id` is absent |
+| `agent.name` | `tracectrl.agent.name` | OpenInference-standard name attribute |
+| `session.id` | `tracectrl.session_id` | Fallback when no TraceCtrl session is active |
 
-The `TraceCtrlSpanProcessor` automatically derives `tracectrl.agent.id` from Agno's native attributes when they're present.
+`tracectrl.agent.framework` is set to `agno` whenever either `agno.agent.id` or `agno.team.id` is present on the span.
 
 ## API
 
@@ -48,5 +53,11 @@ The `TraceCtrlSpanProcessor` automatically derives `tracectrl.agent.id` from Agn
 </ParamField>
 
 <ParamField path="uninstrument" type="method">
-  `uninstrument()` — Shuts down processors and unwraps the instrumentor.
+  `uninstrument()` — Shuts down the TraceCtrl processor and unwraps the OpenInference instrumentor.
 </ParamField>
+
+<ParamField path="instrumented" type="bool">
+  Whether the instrumentor is currently active.
+</ParamField>
+
+{/* Sources: sdk/tracectrl-instrumentation-agno/src/tracectrl/instrumentation/agno/instrumentor.py, sdk/tracectrl/src/tracectrl/processor.py:15-100, sdk/tracectrl/src/tracectrl/__init__.py:14 */}
