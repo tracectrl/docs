@@ -487,18 +487,18 @@ The flow:
 
 ## 4.1 Configure Guardrails in Protector Plus
 
-In your Protector Plus instance (the cloudsineAI dashboard), enable the guardrails you want. The two we'll use for the FinFlow demo:
+In your Protector Plus instance (the cloudsineAI dashboard), enable the guardrails you want. The two we'll use for the FinFlow demo, in order of breadth:
 
-**Standard Protection → Keyword.** Exact keyword/phrase blocklist. We add a rule called **"CFO Pre Approved"** with the keyword `CFO-OVERRIDE` — this directly targets the hidden injection text from the malicious PDF.
-
-<Frame>
-  <img src="/images/protector-plus-keyword.png" alt="Protector Plus Keyword guardrail page: 'CFO Pre Approved' rule with keyword 'CFO-OVERRIDE', actions Pass and Prompt, Block + Monitor toggles." />
-</Frame>
-
-**Shield Prompt → LLM.** LLM-as-judge for prompt injection. Provider is Ollama (local inference), model `llama3.2:3b`. Faster and cheaper than calling Bedrock/Anthropic for every check; runs on the same machine as the workshop.
+**Shield Prompt → LLM.** Broad LLM-as-judge for prompt injection — catches arbitrary injection attempts, not just known phrases. Provider is Ollama (local inference), model `llama3.2:3b`. Faster and cheaper than a hosted Bedrock/Anthropic judge, runs on the same machine as the workshop.
 
 <Frame>
   <img src="/images/protector-plus-llm-guardrail.png" alt="Protector Plus LLM Guardrail config: Provider Ollama (Connected), Provider Type Local Inference, Model llama3.2:3b. Sidebar shows Standard Protection (Keyword/Regex/PII) and Shield Prompt (LLM/Vector/Content Moderation/System Prompt Protection)." />
+</Frame>
+
+**Standard Protection → Keyword.** Narrow keyword/phrase blocklist that targets known attack signatures the LLM judge might rationalise past. We add a rule called **"CFO Pre Approved"** with the keyword `CFO-OVERRIDE` — directly aimed at the hidden injection text from the malicious PDF.
+
+<Frame>
+  <img src="/images/protector-plus-keyword.png" alt="Protector Plus Keyword guardrail page: 'CFO Pre Approved' rule with keyword 'CFO-OVERRIDE', actions Pass and Prompt, Block + Monitor toggles." />
 </Frame>
 
 After configuring, save and copy two values from the Protector Plus admin:
@@ -522,18 +522,41 @@ Hit **Save**. The API key field redacts after save — re-enter the full key any
   **What gets called when.** Once enabled, every `check_input` and `check_output` from the TraceCtrl SDK hits Protector Plus for the ticked guardrails. The guardrails show up in TraceCtrl with `protector_plus.` prefixes (e.g. `protector_plus.keyword`, `protector_plus.llm`) so you can tell at a glance whether a violation came from an SDK-defined guard or from Protector Plus.
 </Info>
 
-## 4.3 Catch a Violation
+## 4.3 Catch a Violation in Both Systems
 
-Re-run FinFlow's malicious-PDF attack (Part 3 demo). On the **Guardrails** page ([http://localhost:3000/guardrails](http://localhost:3000/guardrails)), you'll now see both `protector_plus.keyword` and `protector_plus.llm` registered against the `finflow-ai` service, alongside the SDK-defined `payment_delegation_guard` on the `orchestrator`.
+Re-run FinFlow's malicious-PDF attack from the Part 3 demo. The keyword and LLM guardrails fire, and the **same violation now appears in two places** — once on the Protector Plus side as a firewall detection, once on the TraceCtrl side enriched with agent and trace context.
+
+### Protector Plus → Alerts
+
+In the cloudsineAI dashboard, open **Alerts**. Each detection lands as a row with a Weborion ID (the unique request hash), timestamp, attack category (`KEYWORD` for the CFO-OVERRIDE matches), and confidence score.
 
 <Frame>
-  <img src="/images/tracectrl-guardrails-violation.png" alt="TraceCtrl Guardrails page showing 3 active guardrails (protector_plus.keyword, protector_plus.llm, payment_delegation_guard) under finflow-ai and orchestrator services. Right panel: protector_plus.keyword failed pre-input with 'Keyword match: cfo-override', evidence shows the extracted invoice text including the CFO-OVERRIDE injection, and a matched-keywords JSON response from Protector Plus." />
+  <img src="/images/protector-plus-alerts.png" alt="Protector Plus Alerts page: two Detected alerts with Weborion IDs, both Request type, both KEYWORD attack category, confidence 1, May 13 timestamps. Sidebar shows Standard Protection and Shield Prompt sections with Keyword and LLM both in Block + Monitor mode." />
 </Frame>
 
-Click any violation to see the full evidence panel: the exact input that was checked (raw extracted text from the PDF, with the hidden injection visible), the Protector Plus response (`{"detected": true, "enabled": true, "matched": ["cfo-override"]}`), and a link through to the full session trace.
+This is the **firewall's view** — what got matched, when, with what confidence. Useful for tuning the rules themselves and confirming the detector is wired up. What it doesn't tell you: *which agent in your application made the call, what session it was part of, what happened upstream of the violation*.
+
+### TraceCtrl → Alerts
+
+Open [http://localhost:3000/alerts](http://localhost:3000/alerts). Every Protector Plus detection from above shows up here too, plus violations from any SDK-defined guards like `payment_delegation_guard`:
+
+<Frame>
+  <img src="/images/tracectrl-alerts.png" alt="TraceCtrl Alerts page with 3 violations: (1) HIGH payment_delegation_guard FAIL on agent 'orchestrator', judge BedrockModel, reason 'Multiple unmistakable attack markers detected including CFO-override authority impersonation, skip validation commands, and amount exceeding $10,000'; (2) MEDIUM protector_plus.keyword FAIL on agent 'finflow-ai', judge protector_plus:keyword, reason 'Keyword match: cfo-override'; (3) HIGH payment_delegation_guard FAIL on agent 'orchestrator', judge BedrockModel, reason 'Contains authority-impersonation phrase indicating CFO pre-approval and policy exception to bypass validation'. Right panel: Violation evidence detail for protector_plus.keyword showing REASON, EVIDENCE (extracted invoice text including CFO-OVERRIDE), CONTEXT (agent finflow-ai, judge model protector_plus:keyword, decision fail, observed timestamp, trace ID, span ID), and an Open trace button." />
+</Frame>
+
+Same detection, very different presentation. Each violation card carries:
+
+- **Severity + guardrail name** (e.g. `MEDIUM protector_plus.keyword`) and a `FAIL` badge
+- **Agent** the violation was attached to (`finflow-ai`, `orchestrator`)
+- **Session ID** so you can pivot straight to the trace tree
+- **Judge** that produced the verdict — `protector_plus:keyword` for Protector Plus calls, `BedrockModel` for SDK-defined LLM judges
+
+Click any violation to open the **Violation evidence** panel. You get the exact input that was checked (raw extracted invoice text with the hidden CFO-OVERRIDE line visible), the judge's REASON, the full CONTEXT (agent, judge model, decision, observed time, trace ID, span ID), and an **Open trace** button that drops you on the Sessions page at the offending span.
+
+That's the difference Protector Plus + TraceCtrl gets you over Protector Plus alone — a firewall detection becomes a debuggable, agent-attributed, trace-correlated alert.
 
 <Check>
-  **Checkpoint:** Protector Plus is connected, at least two guardrails (`protector_plus.keyword` + `protector_plus.llm`) are registered in TraceCtrl, and a deliberate malicious input produces a violation visible on the Guardrails page with full evidence.
+  **Checkpoint:** A deliberate malicious input produces matching detections in both the Protector Plus Alerts page and the TraceCtrl Alerts page. The TraceCtrl alert opens to a Violation evidence panel with agent, judge, evidence, and a working **Open trace** button.
 </Check>
 
 ---
@@ -544,31 +567,7 @@ Click any violation to see the full evidence panel: the exact input that was che
   **Fully optional, OpenClaw users only.** Skip this section if you don't already have an OpenClaw workspace running. The OpenClaw attack walkthrough and hardening flow are demonstrated **in person** during the workshop — this section just covers the scan step so you can follow along on your own setup.
 </Info>
 
-[OpenClaw](https://docs.openclaw.ai) is a self-hosted AI agent gateway (LLM ↔ messaging channels, with config-driven tool access and session management). TraceCtrl ships a static scanner for OpenClaw configs that runs 30+ security/ops/compliance checks against `openclaw.json` and uploads the findings to the dashboard.
-
-## Enable Diagnostics
-
-If your OpenClaw is already running, add the OTel exporter to `~/.openclaw/openclaw.json` so runtime spans flow to TraceCtrl alongside the scan:
-
-```json
-{
-  "plugins": { "allow": ["diagnostics-otel"] },
-  "diagnostics": {
-    "enabled": true,
-    "otel": {
-      "enabled": true,
-      "endpoint": "http://localhost:4318",
-      "protocol": "http/protobuf",
-      "serviceName": "openclaw-gateway",
-      "traces": true
-    }
-  }
-}
-```
-
-```bash
-openclaw gateway restart
-```
+[OpenClaw](https://docs.openclaw.ai) is a self-hosted AI agent gateway (LLM ↔ messaging channels, with config-driven tool access and session management). TraceCtrl ships a static scanner for OpenClaw configs that runs 30+ security/ops/compliance checks against `openclaw.json` and uploads the findings to the dashboard. No runtime instrumentation — pure static analysis of the config.
 
 ## Run the Scan
 
