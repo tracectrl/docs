@@ -7,19 +7,21 @@ description: "Automatic risk classification for every tool call"
 
 Every tool call captured by TraceCtrl is automatically classified into a risk category based on its name and description. This classification is stored in the `tracectrl.tool.category` span attribute.
 
-The classification happens in the `TraceCtrlSpanProcessor` — no configuration required.
+The classification happens in the `TraceCtrlSpanProcessor` — no configuration required beyond installing the processor on your `TracerProvider`.
 
 ## Risk Categories
 
+There are 8 categories. Rules are evaluated in priority order — the first match wins. Both the tool name and description are checked (case-insensitive).
+
 | Category | Matches | Risk Signal |
 |----------|---------|-------------|
-| `code_execution` | exec, run_code, python, bash, shell, eval, compile | **High** — arbitrary code execution |
-| `email` | send_email, send_mail, smtp | **High** — data exfiltration vector |
-| `external_api` | http, fetch, request, curl, scrape, browse, web | **Medium** — network access |
-| `file_system` | write_file, save_file, create_file, delete_file, rm, mv | **Medium** — filesystem mutation |
-| `memory_write` | vector, embed, upsert, add_document, index | **Medium** — memory poisoning vector |
-| `memory_read` | search, query, retrieve, recall, lookup | **Low** — information access |
-| `human_interaction` | approval, confirm, ask_user, hitl | **Low** — human-in-the-loop safety |
+| `code_execution` | `exec`, `run_code`, `python`, `bash`, `shell`, `eval`, `compile` | **High** — arbitrary code execution |
+| `email` | `send_email`, `send_mail`, `email`, `smtp` | **High** — data exfiltration vector |
+| `external_api` | `http`, `fetch`, `request`, `curl`, `scrape`, `browse`, `web` | **Medium** — network access |
+| `file_system` | `write_file`, `save_file`, `create_file`, `delete_file`, `rm `, ` mv ` | **Medium** — filesystem mutation |
+| `memory_write` | `vector`, `embed`, `upsert`, `add_document`, `index` | **Medium** — memory poisoning vector |
+| `memory_read` | `search`, `query`, `retrieve`, `recall`, `lookup` | **Low** — information access |
+| `human_interaction` | `human`, `approval`, `confirm`, `ask_user`, `hitl` | **Low** — human-in-the-loop safety |
 | `internal_api` | _(default fallback)_ | **Low** — internal function call |
 
 ## How It Works
@@ -39,6 +41,8 @@ infer_tool_category("ask_user_for_approval") # → "human_interaction"
 infer_tool_category("calculate_tax")         # → "internal_api"
 ```
 
+Signature: `infer_tool_category(tool_name: str, tool_description: str = "") -> str`.
+
 ## Matching Logic
 
 Rules are evaluated in priority order — the first match wins. Both the tool name and description are checked (case-insensitive). The rules are defined in `tracectrl.inference.TOOL_CATEGORY_RULES`.
@@ -46,6 +50,10 @@ Rules are evaluated in priority order — the first match wins. Both the tool na
 <Note>
   The description field is important for accurate classification. A tool named `process_data` would be classified as `internal_api`, but if its description contains "fetches data from external HTTP endpoint", it would match `external_api`.
 </Note>
+
+## Related Inference: Tool Direction
+
+Alongside the category, the processor also stamps `tracectrl.tool.direction` via `infer_tool_direction()` — one of `input`, `output`, or `internal`. This describes whether the tool brings data **into** the system (e.g., `receive`, `fetch`, `webhook_handler`), pushes data **out** (e.g., `send`, `post`, `publish`), or operates internally.
 
 ## Why This Matters
 
@@ -55,3 +63,5 @@ Tool category classification enables:
 - **Attack path analysis** — TAGAAI identifies exploitation chains through high-risk tool categories
 - **Topology visualization** — the dashboard shows tool nodes colored by risk level
 - **Alerting** — trigger alerts when unexpected tool categories appear in agent behavior
+
+{/* Sources: sdk/tracectrl/src/tracectrl/inference.py (TOOL_CATEGORY_RULES, infer_tool_category, infer_tool_direction) */}

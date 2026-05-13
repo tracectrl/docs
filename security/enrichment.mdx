@@ -12,55 +12,84 @@ The `TraceCtrlSpanProcessor` is an OpenTelemetry `SpanProcessor` that runs on ev
 For each span, the processor runs these enrichment steps:
 
 <Steps>
-  <Step title="Session ID">
-    On span start, attaches the current `tracectrl.session_id` from context vars. This ensures every span in a session is correlated.
+  <Step title="Session ID (on span start)">
+    On span start, attaches the current `tracectrl.session_id` from the in-process context var. This ensures every span in a session is correlated. On span end, falls back to Agno's `session.id` if no explicit session was set.
+  </Step>
+
+  <Step title="Ingress detection (on span start)">
+    If the span has no valid parent span context, it is marked with `tracectrl.ingress = true` and `tracectrl.trigger_type` is inferred from the span name (`email`, `upload`, `webhook`, `scheduled`, `manual`).
   </Step>
 
   <Step title="Agent Identity">
-    For `AGENT` spans, derives `tracectrl.agent.id` and `tracectrl.agent.name` from framework-specific attributes (e.g., Agno's `agno.agent.id`, OpenInference's `agent.name`). If only a name exists, the ID is derived as `name.lower().replace(' ', '-')`.
+    For `AGENT` spans, derives `tracectrl.agent.id` and `tracectrl.agent.name` from framework-specific attributes (Agno's `agno.agent.id` / `agno.team.id`, OpenInference's `agent.name`). If only a name exists, the ID is derived as `name.lower().replace(' ', '-')`. The framework is inferred from span naming conventions: `invoke_agent …` → `strands`, `openclaw.…` → `openclaw`, Agno IDs → `agno`, otherwise `unknown`.
   </Step>
 
-  <Step title="Tool Category">
-    For spans with a `tool.name` attribute, classifies the tool into one of 8 risk categories and sets `tracectrl.tool.category`.
+  <Step title="Tool Category and Direction">
+    For spans with a `tool.name` attribute, classifies the tool into one of 8 risk categories and sets `tracectrl.tool.category`. Also stamps `tracectrl.tool.direction` (`input`, `output`, or `internal`).
   </Step>
 
   <Step title="System Prompt Hash">
-    For spans with `llm.system` (the system prompt), computes a SHA-256 hash (truncated to 16 hex chars) and stores it as `tracectrl.system_prompt_hash`. A change in this hash between observations indicates prompt drift or tampering.
-  </Step>
-
-  <Step title="Input Source">
-    Sets `tracectrl.input.source` based on input provenance:
-
-    - `"user"` — direct human input (no caller agent, no external marker)
-    - `"agent"` — input from another agent (`tracectrl.caller.agent_id` is present)
-    - `"external"` — input from an external source (HTTP webhook, API call, or untrusted channel)
-    - `"memory"` — input retrieved from a vector store or knowledge base (`memory_read` tool in the span ancestry)
-  </Step>
-
-  <Step title="Memory Operation">
-    For spans involving memory tools, sets `tracectrl.memory.operation` to `"read"` or `"write"` based on the tool category (`memory_read` vs `memory_write`).
-  </Step>
-
-  <Step title="Memory Write Provenance">
-    For `memory_write` operations, sets `tracectrl.memory.write_provenance` to track where the written data originated — the `input.source` value of the span that produced the content being stored. This enables detecting memory poisoning (e.g., external input being written to a shared knowledge base).
+    For spans with `llm.system` (the system prompt), computes a SHA-256 hash (truncated to 16 hex chars / 64 bits) and stores it as `tracectrl.system_prompt_hash`. A change in this hash between observations indicates prompt drift or tampering.
   </Step>
 
   <Step title="Span Sequence">
-    Sets `tracectrl.span_sequence` to an incrementing counter within the trace, reflecting the chronological order of span creation. This enables reconstructing the exact execution order even when timestamps have insufficient resolution.
+    Sets `tracectrl.span_sequence` to a monotonic counter (stored as a string), reflecting the chronological order of span creation. This enables reconstructing the exact execution order even when timestamps have insufficient resolution.
+  </Step>
+
+  <Step title="Memory Operation">
+    For `RETRIEVER` spans the operation is set to `read`; for spans whose inferred tool category is `memory_write` the operation is set to `write`.
+  </Step>
+
+  <Step title="Input Source">
+    Sets `tracectrl.input.source` based on provenance:
+
+    - `"external"` — tool category is `external_api` or `email`
+    - `"memory"` — tool category is `memory_read` or span is a `RETRIEVER`
+    - `"agent"` — `tracectrl.caller.agent_id` is present
+    - `"user"` — default (direct human input)
+  </Step>
+
+  <Step title="Memory Write Provenance">
+    For `memory_write` operations, sets `tracectrl.memory.write_provenance` to the resolved `input.source`. This enables detecting memory poisoning (e.g., external input being written to a shared knowledge base).
   </Step>
 </Steps>
 
-## Using the Processor Directly
+## Installation
 
-The processor is automatically registered when you call `.instrument()` on any instrumentor. If you need to use it with a custom TracerProvider:
+Unlike `SystemPromptStamper` (which is auto-installed by `configure()`), `TraceCtrlSpanProcessor` must be added to your `TracerProvider` explicitly:
 
 ```python
 from tracectrl.processor import TraceCtrlSpanProcessor
+from opentelemetry import trace
 from opentelemetry.sdk.trace import TracerProvider
 
 provider = TracerProvider()
 provider.add_span_processor(TraceCtrlSpanProcessor())
+trace.set_tracer_provider(provider)
 ```
+
+When using `tracectrl.configure(...)`, the provider it creates is set as the global tracer provider; add `TraceCtrlSpanProcessor` to that global provider after configuration:
+
+```python
+import tracectrl
+from opentelemetry import trace
+from tracectrl.processor import TraceCtrlSpanProcessor
+
+tracectrl.configure(endpoint="...", api_key="...")
+trace.get_tracer_provider().add_span_processor(TraceCtrlSpanProcessor())
+```
+
+## System Prompt Stamping
+
+System prompts are surfaced into spans through a complementary flow:
+
+1. The user calls `tag_agent(agent, system_prompt=...)` (or `tag_agents(...)`) once per agent. This registers the prompt in an in-process registry keyed by agent name.
+2. `configure()` auto-installs a `SystemPromptStamper` span processor on the global `TracerProvider`.
+3. On every span, the stamper looks up the agent name and writes `llm.system` onto the span. The `TraceCtrlSpanProcessor` then hashes that value into `tracectrl.system_prompt_hash`.
+
+This indirection means user code never has to wire the stamper directly — calling `tag_agent` after `configure()` is enough for prompt hashes to start appearing on spans.
+
+{/* Sources: sdk/tracectrl/src/tracectrl/{processor.py,config.py,agent_tagging.py,inference.py,schema.py} */}
 
 ## Prompt Drift Detection
 
