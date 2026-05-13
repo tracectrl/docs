@@ -7,66 +7,83 @@ description: "FastAPI backend that processes spans into agent intelligence"
 
 The TraceCtrl Engine is a FastAPI application that:
 
-1. Runs a **background pipeline** every 60 seconds to process new spans
-2. Serves a **REST API** for the dashboard and external integrations
-3. Maintains **cumulative state** in ClickHouse using ReplacingMergeTree tables
+1. Runs a **background pipeline** every `PIPELINE_INTERVAL_SECONDS` to process spans.
+2. Serves a **REST API** under `/api/v1` for the dashboard and external integrations.
+3. Maintains **cumulative state** in ClickHouse using `ReplacingMergeTree` tables.
+
+{/* Sources: engine/main.py:22-44, engine/scheduler.py:21-27 */}
 
 ## Pipeline
 
-The pipeline is scheduled via APScheduler and runs at the interval set by `PIPELINE_INTERVAL_SECONDS` (default: 60).
+Scheduled via APScheduler at the interval set by `PIPELINE_INTERVAL_SECONDS` (default: `60`). Each tick re-reads all spans — there is no watermark on the main path; `ReplacingMergeTree` handles deduplication via background merges. {/* Sources: engine/scheduler.py:23, engine/pipeline/runner.py:14-37 */}
 
 <Steps>
-  <Step title="Fetch new spans">
-    Reads from `otel_traces` where `Timestamp > last_watermark`. Extracts 20+ attributes per span including all `tracectrl.*`, `openinference.*`, and framework-specific fields.
+  <Step title="Fetch spans">
+    Read every span from `otel_traces` (via `fetch_all_spans()`).
   </Step>
 
   <Step title="Update agent inventory">
-    Groups spans by `tracectrl.agent.id` and upserts agent records. Tracks cumulative `observation_count`, `run_count`, `tools_observed`, and computes maturity (`LEARNING` → `MATURE` after 10 observations).
+    Group spans by `tracectrl.agent.id` and upsert agent records. Tracks cumulative `observation_count`, `run_count`, `tools_observed`, and computes maturity (`LEARNING` → `MATURE` after 10 observations).
   </Step>
 
   <Step title="Build topology">
-    Creates agent-to-agent edges (via `tracectrl.caller.agent_id` or parent span resolution) and agent-to-tool edges. Edges carry cumulative counts and confidence levels (`LOW` → `MEDIUM` → `HIGH`).
+    Create agent-to-agent edges (via `tracectrl.caller.agent_id` or parent span resolution) and agent-to-tool edges. Edges carry cumulative counts and confidence levels (`LOW` → `MEDIUM` → `HIGH`).
   </Step>
 
-  <Step title="Advance watermark">
-    Updates `pipeline_state.last_processed_at`. Only advances on success — if the pipeline fails or finds no new spans, the watermark stays put so no data is ever skipped.
+  <Step title="Ingest guardrail violations">
+    Scan `otel_traces` for `tracectrl.guardrail.evaluation` spans with `decision in ('fail', 'error')` and insert into `guardrail_violations`. A 5-minute lookback off the latest `observed_at` keeps it from rescanning the whole table every tick. {/* Sources: engine/db/violations.py:21-155 */}
   </Step>
 
-  <Step title="Vulnerability mapping">
-    Scans the agent inventory and topology for known vulnerability patterns using TAGAAI rules. Each rule maps to an OWASP ASI category and carries a base CVSS score.
+  <Step title="Ingest guardrail registry">
+    Scan `otel_traces` for `tracectrl.guardrail.registered` spans and upsert into `guardrail_registry`. A health-override pass flips `health='error'` for any guardrail with a decision=error violation in the last hour. {/* Sources: engine/db/guardrail_registry.py:39-189 */}
   </Step>
 
-  <Step title="Attack graph generation">
-    Traverses topology edges to build multi-hop attack paths — chains of agent-to-tool-to-agent connections that an attacker could exploit. Each path records every step from entry point to impact.
-  </Step>
-
-  <Step title="Risk scoring">
-    Computes a risk score for each attack path using the formula: `base_cvss * tool_category_weight * input_source_weight * hop_multiplier`. Tool category weights reflect the danger of the tool type (e.g., `code_execution` = 1.0, `internal_api` = 0.1). Input source weights reflect trust level (`external` = 1.0, `user` = 0.8, `agent` = 0.5, `memory` = 0.6). Hop multipliers increase risk for longer chains.
-  </Step>
-
-  <Step title="Path persistence">
-    Writes scored attack paths, per-agent risk scores, and the system-wide risk summary to ClickHouse tables (`attack_paths`, `agent_risk_scores`, `system_risk`).
+  <Step title="Attack graph + risk">
+    Evaluate TAGAAI rules, build multi-hop attack paths, score risk, and write `attack_paths`, `agent_risk_scores`, `system_risk`. {/* Sources: engine/pipeline/attack_graph_runner.py, engine/rules/ */}
   </Step>
 </Steps>
 
 ## TAGAAI Rules
 
-The engine ships with three built-in detection rules based on OWASP ASI categories:
+The engine ships four detection rules. Rule names and base CVSS come from `engine/rules/`.
 
-| Rule | OWASP | Base CVSS | Trigger |
-|------|-------|-----------|---------|
-| Prompt Injection | ASI01 | 7.2 | Agent accepts `input.source = "external"` and has a changing `system_prompt_hash` |
-| Excessive Agency | ASI02 | 8.1 | Agent has access to `code_execution` or `email` tools without `human_interaction` guardrails |
-| Data Leakage | ASI01 + ASI02 | 6.8 | Agent chain where one reads from `memory_read` and another writes to `external_api` or `email` |
+| Rule (`rule_name`) | OWASP | Base CVSS | Trigger |
+|---|---|---|---|
+| `vulnerableToPromptInjection` | ASI01 | 7.2 | Agent has a tool edge with `external` call-context > 0 AND no `human_interaction` tool. {/* Sources: engine/rules/prompt_injection.py:1-20 */} |
+| `vulnerableToExcessiveAgency` | ASI02 | 8.1 | Agent has access to `code_execution` or `email` tools without a `human_interaction` guardrail. {/* Sources: engine/rules/excessive_agency.py:1, 41-53 */} |
+| `vulnerableToDataLeakage` | ASI01 + ASI02 | 6.8 | Agent chain where one reads from `memory_read` and another writes to `external_api` or `email`. {/* Sources: engine/rules/data_leakage.py:1 */} |
+| `ingressToEndpointAttackPath` | ASI01/ASI02 (impact-dependent) | varies (5.0–9.0) | Multi-hop ingress → high-impact endpoint chain. Base CVSS varies by impact category. {/* Sources: engine/rules/ingress_to_endpoint.py:572-604 */} |
+
+## Guardrails Pipeline
+
+The engine has two ingestion paths feeding the Alerts and Guardrails UI pages, both driven from spans the SDK already emits.
+
+### Registration ingestion
+
+`update_guardrail_registry()` reads `tracectrl.guardrail.registered` spans and writes one row per `(agent_id, guardrail_name)` to `guardrail_registry`. The ReplacingMergeTree version column is `last_seen_at`, so re-emitting the same registration just refreshes the row. Spans carry: `severity`, `mode` (`monitoring`/`blocking`), `timing` (`pre_input`/`post_output`), `judge_model`, `description`, `judge_prompt`, `health` (`active`/`error`/`disabled`), and `provider` (`judge_llm` or `protector_plus`). {/* Sources: engine/db/guardrail_registry.py:39-183, engine/db/client.py:110-125 */}
+
+### Violation ingestion
+
+`update_violations()` reads `tracectrl.guardrail.evaluation` spans with `decision in ('fail', 'error')` and writes them to `guardrail_violations`. The `violation_id` is the eval span id, so the ReplacingMergeTree dedupes re-inserts. Each row carries `reason`, `evidence`, `severity`, `judge_model`, and `provider`. {/* Sources: engine/db/violations.py:21-155, engine/db/client.py:94-109 */}
+
+### ClickHouse tables (guardrails)
+
+| Table | Engine | Purpose |
+|---|---|---|
+| `guardrail_registry` | `ReplacingMergeTree(last_seen_at)` ORDER BY `(agent_id, guardrail_name)` | One row per registered guardrail |
+| `guardrail_violations` | `ReplacingMergeTree()` ORDER BY `(observed_at, violation_id)` | One row per failing/erroring evaluation |
+| `protector_plus_config` | `ReplacingMergeTree(updated_at)` ORDER BY `(id)` | Single global row: endpoint, API key, enabled guardrails |
+
+{/* Sources: engine/db/client.py:94-146 */}
 
 ## Configuration
 
 | Variable | Default | Description |
-|----------|---------|-------------|
-| `CLICKHOUSE_HOST` | `localhost` | ClickHouse host |
+|---|---|---|
+| `CLICKHOUSE_HOST` | `localhost` (`clickhouse` in compose) | ClickHouse host |
 | `CLICKHOUSE_PORT` | `9000` | ClickHouse native port |
 | `CLICKHOUSE_DB` | `tracectrl` | Database name |
-| `PIPELINE_INTERVAL_SECONDS` | `60` | Pipeline cycle interval |
+| `PIPELINE_INTERVAL_SECONDS` | `60` | Pipeline cycle interval {/* Sources: engine/scheduler.py:23, docker-compose.yml:39 */} |
 
 ## Running Locally
 
@@ -78,5 +95,5 @@ uvicorn engine.main:app --reload --port 8000
 ```
 
 <Note>
-  When running locally, ensure ClickHouse is accessible at the configured host/port and the `tracectrl` database exists with the schema from `config/schema.sql`.
+  When running locally, ensure ClickHouse is accessible at the configured host/port. The engine's `ensure_schema()` will create the `tracectrl` database and all tables on startup.
 </Note>
