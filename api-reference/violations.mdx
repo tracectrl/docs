@@ -1,0 +1,33 @@
+---
+title: "List Violations"
+api: "GET http://localhost:8000/api/v1/violations"
+description: "Guardrail violations with optional filtering"
+---
+
+Returns guardrail violations ordered newest first.
+
+### Query Parameters
+
+<ParamField query="limit" type="integer" default="50">Maximum rows to return.</ParamField>
+<ParamField query="agent_id" type="string">Filter by agent.</ParamField>
+<ParamField query="severity" type="string">Filter by severity (`critical`, `high`, `medium`, `low`).</ParamField>
+
+### Response
+
+Array of `Violation` objects:
+
+<ResponseField name="violation_id" type="string">Unique violation identifier</ResponseField>
+<ResponseField name="trace_id" type="string">Trace that produced the violation</ResponseField>
+<ResponseField name="span_id" type="string">Span being evaluated</ResponseField>
+<ResponseField name="eval_span_id" type="string">Span ID of the evaluation itself</ResponseField>
+<ResponseField name="agent_id" type="string">Agent that produced the offending output / received the offending input</ResponseField>
+<ResponseField name="guardrail_name" type="string">Guardrail that fired</ResponseField>
+<ResponseField name="judge_model" type="string">Model that produced the decision</ResponseField>
+<ResponseField name="decision" type="string">`pass`, `fail`, or `error`</ResponseField>
+<ResponseField name="reason" type="string">Judge's reasoning</ResponseField>
+<ResponseField name="evidence" type="string">Evidence captured at evaluation time</ResponseField>
+<ResponseField name="severity" type="string">`critical`, `high`, `medium`, or `low`</ResponseField>
+<ResponseField name="observed_at" type="string">ISO-8601 timestamp</ResponseField>
+<ResponseField name="provider" type="string">`judge_llm` or `protector_plus`</ResponseField>
+
+{/* Source: engine/api/routes/violations.py:21 (response model: Violation in engine/api/models.py:97) */}

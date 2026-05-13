@@ -1,0 +1,33 @@
+---
+title: "Upload Scan Results"
+api: "POST http://localhost:8000/api/v1/scans"
+description: "Store scan results produced by a remote TraceCtrl CLI"
+---
+
+Receive scan results from a remote CLI run and store them. The CLI ships its own check list and (optionally) a derived topology snapshot for the workspace.
+
+### Request body — `ScanUploadPayload`
+
+<ParamField body="scan_path" type="string" required>Workspace path the scan was run against.</ParamField>
+<ParamField body="profile" type="string" default="L1">Benchmark profile.</ParamField>
+<ParamField body="checks" type="object[]" required>
+  Array of check results. Each entry has:
+  <Expandable>
+    <ParamField body="check_id" type="string" required />
+    <ParamField body="section" type="string" required />
+    <ParamField body="title" type="string" required />
+    <ParamField body="severity" type="string" required />
+    <ParamField body="passed" type="boolean" required />
+    <ParamField body="finding" type="string">Defaults to empty string.</ParamField>
+    <ParamField body="remediation" type="string">Defaults to empty string.</ParamField>
+    <ParamField body="config_path" type="string">Defaults to empty string.</ParamField>
+  </Expandable>
+</ParamField>
+<ParamField body="topology" type="object">Optional topology snapshot (`{nodes, edges}`) as produced by the scanner's topology builder.</ParamField>
+
+### Response
+
+<ResponseField name="scan_id" type="string">Identifier of the stored scan</ResponseField>
+<ResponseField name="stored" type="integer">Number of check rows stored</ResponseField>
+
+{/* Source: engine/api/routes/scan.py:165 */}

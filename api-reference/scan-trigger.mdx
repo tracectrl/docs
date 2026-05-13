@@ -1,0 +1,27 @@
+---
+title: "Trigger Scan"
+api: "POST http://localhost:8000/api/v1/scan/trigger"
+description: "Start a scan job and poll for completion"
+---
+
+Triggers a scan from the UI. The endpoint returns immediately; clients should poll [`/scan/status/{scan_id}`](/api-reference/scan-status) for completion.
+
+Only one scan can run at a time. A second concurrent trigger returns `409 A scan is already running`. Stale job records (>30 min old) are pruned on each trigger.
+
+### Request body — `ScanTriggerPayload`
+
+<ParamField body="workspace_path" type="string" required>Absolute path to the OpenClaw workspace (must contain `openclaw.json`).</ParamField>
+<ParamField body="profile" type="string" default="L1">Benchmark profile.</ParamField>
+
+### Errors
+
+- `400` — Path is not a valid OpenClaw workspace
+- `409` — A scan is already running
+
+### Response
+
+<ResponseField name="scan_id" type="string">Job ID for status polling (12-char hex)</ResponseField>
+<ResponseField name="status" type="string">Always `running` on a successful trigger</ResponseField>
+<ResponseField name="started_at" type="string">ISO-8601 timestamp</ResponseField>
+
+{/* Source: engine/api/routes/scan.py:270 */}

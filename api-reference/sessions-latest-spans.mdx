@@ -1,0 +1,17 @@
+---
+title: "Latest Trace Spans"
+api: "GET http://localhost:8000/api/v1/sessions/latest-spans"
+description: "Spans from the most recent trace"
+---
+
+Returns the spans belonging to the single most recent trace. Shape matches [Get Trace Spans](/api-reference/sessions-spans).
+
+### Query Parameters
+
+<ParamField query="service" type="string">Restrict the search to a specific service.</ParamField>
+
+### Response
+
+Array of `SpanDetail` objects — see [Get Trace Spans](/api-reference/sessions-spans) for field documentation.
+
+{/* Source: engine/api/routes/sessions.py:21 */}

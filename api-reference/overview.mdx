@@ -17,21 +17,83 @@ The Engine API currently does not require authentication. In production deployme
 
 ## Endpoints
 
+### System
+
 | Method | Endpoint | Description |
 |--------|----------|-------------|
 | `GET` | [`/health`](/api-reference/health) | Health check |
-| `GET` | `/projects` | List all service names (for project selector) |
-| `GET` | [`/topology/graph`](/api-reference/topology-graph) | Full topology graph (supports `?service=` filter) |
+| `GET` | [`/projects`](/api-reference/projects) | List all service names (for project selector) |
+
+### Topology
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | [`/topology/graph`](/api-reference/topology-graph) | Full topology graph (supports `?service=`) |
 | `GET` | [`/topology/agents/{agent_id}`](/api-reference/topology-agent) | Single agent detail |
-| `GET` | `/agents` | List all agents with inventory data (supports `?service=` filter) |
-| `GET` | `/agents/{agent_id}/tools` | Tools used by a specific agent |
-| `GET` | [`/sessions`](/api-reference/sessions) | Session list (supports `?service=` filter) |
-| `GET` | [`/sessions/{trace_id}/spans`](/api-reference/sessions-spans) | Spans for a trace |
-| `GET` | `/sessions/latest-spans` | Spans from the most recent workflow run (supports `?service=` filter) |
-| `GET` | [`/risk/agents`](/api-reference/risk-agents) | All agents with risk data |
+
+### Agents
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | [`/agents`](/api-reference/agents) | Agent inventory (supports `?service=`) |
+| `GET` | [`/agents/{agent_id}/tools`](/api-reference/agent-tools) | Tools used by an agent |
+| `GET` | [`/agents/{agent_id}/guardrails`](/api-reference/agent-guardrails) | Guardrails for an agent |
+
+### Sessions
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | [`/sessions`](/api-reference/sessions) | Session list (supports `?service=`) |
+| `GET` | [`/sessions/latest-spans`](/api-reference/sessions-latest-spans) | Spans from the most recent trace |
+| `GET` | [`/sessions/{trace_id}/spans`](/api-reference/sessions-spans) | Spans for a trace (supports `?extra=`) |
+
+### Guardrails
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | [`/guardrails`](/api-reference/guardrails-list) | Guardrail registry (supports `?agent_id=`) |
+| `GET` | [`/guardrails/invocations`](/api-reference/guardrail-invocations) | Recent evaluation spans |
+| `GET` | [`/guardrails/protector-config`](/api-reference/protector-config) | Protector Plus config (redacted) |
+| `PUT` | [`/guardrails/protector-config`](/api-reference/protector-config) | Upsert Protector Plus config |
+| `POST` | [`/guardrails/protector-test`](/api-reference/protector-config) | Health-check the Protector Plus endpoint |
+| `GET` | [`/guardrails/protector-config/sdk`](/api-reference/protector-config) | Full config for the SDK |
+
+### Violations
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | [`/violations`](/api-reference/violations) | List violations (`limit`, `agent_id`, `severity`) |
+| `GET` | [`/violations/recent`](/api-reference/violations-recent) | Recent violations (`limit`) |
+| `GET` | [`/violations/stream`](/api-reference/violations-stream) | SSE stream of new violations |
+
+### Scans
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `POST` | [`/scans`](/api-reference/scans-upload) | Upload scan results from a CLI |
+| `GET` | [`/scans`](/api-reference/scans-list) | List all stored scans |
+| `GET` | [`/scans/latest`](/api-reference/scans-latest) | Latest scan with drift detection |
+| `GET` | [`/scans/{scan_id}`](/api-reference/scans-detail) | Results for a specific scan |
+| `POST` | [`/scan/validate-path`](/api-reference/scan-validate-path) | Validate an OpenClaw workspace path |
+| `POST` | [`/scan/trigger`](/api-reference/scan-trigger) | Trigger an engine-side scan |
+| `GET` | [`/scan/status/{scan_id}`](/api-reference/scan-status) | Poll a triggered scan |
+| `POST` | [`/scan/fix`](/api-reference/scan-fix) | Apply automated remediations |
+
+### Risk
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | [`/risk/agents`](/api-reference/risk-agents) | All agents with inventory data |
 | `GET` | [`/risk/summary`](/api-reference/risk-summary) | System-wide risk summary |
 | `GET` | [`/risk/attack-paths`](/api-reference/attack-paths) | Ranked attack paths from TAGAAI rules |
 | `GET` | [`/risk/agent-scores`](/api-reference/agent-scores) | Per-agent risk scores |
+
+### Attack Graph
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | [`/attack-graph/paths`](/api-reference/attack-graph-paths) | Detailed paths for the findings panel |
+| `GET` | [`/attack-graph/overlay`](/api-reference/attack-graph-overlay) | Compromised nodes and edges for the overlay |
 
 ## Response Format
 
@@ -43,4 +105,4 @@ All endpoints return JSON. Errors return:
 }
 ```
 
-with the appropriate HTTP status code (400, 404, or 500).
+with the appropriate HTTP status code (400, 404, 409, 500, or 503 where applicable).

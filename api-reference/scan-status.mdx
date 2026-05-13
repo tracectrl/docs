@@ -1,0 +1,26 @@
+---
+title: "Scan Job Status"
+api: "GET http://localhost:8000/api/v1/scan/status/{scan_id}"
+description: "Poll for the status of a triggered scan"
+---
+
+Polls the in-memory job table populated by [`/scan/trigger`](/api-reference/scan-trigger). Job entries are pruned 30 minutes after they start; a poll on an expired job returns `404`.
+
+### Path Parameters
+
+<ParamField path="scan_id" type="string" required>Job ID returned by `/scan/trigger`.</ParamField>
+
+### Errors
+
+- `404` — Scan job not found (may have expired)
+
+### Response
+
+<ResponseField name="scan_id" type="string">Echo of the requested job ID</ResponseField>
+<ResponseField name="status" type="string">`running`, `complete`, or `failed`</ResponseField>
+<ResponseField name="started_at" type="string">ISO-8601 timestamp</ResponseField>
+<ResponseField name="completed_at" type="string">ISO-8601 timestamp once the job has finished, otherwise `null`</ResponseField>
+<ResponseField name="error" type="string">Error message when `status` is `failed`, otherwise `null`</ResponseField>
+<ResponseField name="stored_scan_id" type="string">ID of the persisted scan when complete — fetch results via [`/scans/{scan_id}`](/api-reference/scans-detail)</ResponseField>
+
+{/* Source: engine/api/routes/scan.py:302 */}

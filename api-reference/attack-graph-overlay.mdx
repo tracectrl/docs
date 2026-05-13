@@ -1,0 +1,30 @@
+---
+title: "Attack Graph Overlay"
+api: "GET http://localhost:8000/api/v1/attack-graph/overlay"
+description: "Compromised nodes and attack edges overlayed on the topology"
+---
+
+Builds the overlay data consumed by the dashboard's **Attack Surface** topology mode: every node and edge that participates in at least one attack path, tagged with the highest severity seen.
+
+### Response
+
+<ResponseField name="compromised_nodes" type="object[]">
+  Array of compromised agent nodes (tool and ingress nodes are excluded):
+  <Expandable>
+    <ResponseField name="node_id" type="string">Agent ID</ResponseField>
+    <ResponseField name="severity" type="string">Highest severity across paths involving this node</ResponseField>
+    <ResponseField name="risk_score" type="float">Highest risk score across paths involving this node</ResponseField>
+  </Expandable>
+</ResponseField>
+
+<ResponseField name="attack_edges" type="object[]">
+  Deduplicated edges that appear in at least one attack path:
+  <Expandable>
+    <ResponseField name="source" type="string">Source node ID</ResponseField>
+    <ResponseField name="target" type="string">Target node ID</ResponseField>
+    <ResponseField name="rule_id" type="string">Always `attack_path`</ResponseField>
+    <ResponseField name="severity" type="string">Highest severity along this edge</ResponseField>
+  </Expandable>
+</ResponseField>
+
+{/* Source: engine/api/routes/risk.py:75 */}

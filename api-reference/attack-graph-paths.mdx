@@ -1,0 +1,28 @@
+---
+title: "Attack Graph Paths"
+api: "GET http://localhost:8000/api/v1/attack-graph/paths"
+description: "Detailed attack paths for the findings panel"
+---
+
+Returns detailed attack-path rows from the `attack_paths` table, ordered by `risk_score` descending. Unlike [`/risk/attack-paths`](/api-reference/attack-paths), this endpoint exposes the raw node/edge lists and the rule metadata used to render the findings panel.
+
+### Response
+
+<ResponseField name="paths" type="object[]">
+  Array of path objects:
+  <Expandable>
+    <ResponseField name="path_id" type="string">Unique path identifier</ResponseField>
+    <ResponseField name="rule_id" type="string">Rule identifier</ResponseField>
+    <ResponseField name="severity" type="string">`Critical`, `High`, `Medium`, or `Low`</ResponseField>
+    <ResponseField name="owasp_tag" type="string">OWASP ASI tag</ResponseField>
+    <ResponseField name="title" type="string">Rule title</ResponseField>
+    <ResponseField name="description" type="string">Description / explanation</ResponseField>
+    <ResponseField name="agent_id" type="string">Primary agent involved</ResponseField>
+    <ResponseField name="path_nodes" type="string[]">Node IDs along the path (agents, `tool:*`, `ingress:*`)</ResponseField>
+    <ResponseField name="path_edges" type="string[]">Topology edge IDs traversed by the path</ResponseField>
+    <ResponseField name="risk_score" type="float">Computed risk score</ResponseField>
+    <ResponseField name="detected_at" type="string">ISO-8601 timestamp, or `null`</ResponseField>
+  </Expandable>
+</ResponseField>
+
+{/* Source: engine/api/routes/risk.py:40 */}

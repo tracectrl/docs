@@ -1,0 +1,32 @@
+---
+title: "List Guardrails"
+api: "GET http://localhost:8000/api/v1/guardrails"
+description: "Registered guardrails across the system"
+---
+
+Returns every guardrail in the registry. Optionally filter to a single agent.
+
+### Query Parameters
+
+<ParamField query="agent_id" type="string">Filter to guardrails registered for a specific agent.</ParamField>
+
+### Response
+
+Array of `GuardrailRegistration` objects:
+
+<ResponseField name="agent_id" type="string">Agent the guardrail is attached to</ResponseField>
+<ResponseField name="guardrail_name" type="string">Guardrail identifier</ResponseField>
+<ResponseField name="severity" type="string">`low`, `medium`, `high`, or `critical`</ResponseField>
+<ResponseField name="mode" type="string">`monitoring` or `blocking`</ResponseField>
+<ResponseField name="timing" type="string">`pre_input` or `post_output`</ResponseField>
+<ResponseField name="judge_model" type="string">Model used for evaluation</ResponseField>
+<ResponseField name="description" type="string">Human-readable description</ResponseField>
+<ResponseField name="judge_prompt" type="string">Custom judge prompt (may be empty)</ResponseField>
+<ResponseField name="health" type="string">`active`, `error`, or `disabled`</ResponseField>
+<ResponseField name="health_reason" type="string">Explanation when health is not active</ResponseField>
+<ResponseField name="registered_at" type="string">ISO-8601 timestamp</ResponseField>
+<ResponseField name="last_seen_at" type="string">ISO-8601 timestamp</ResponseField>
+<ResponseField name="recent_activity_24h" type="integer">Invocations in the last 24h</ResponseField>
+<ResponseField name="provider" type="string">`judge_llm` or `protector_plus`</ResponseField>
+
+{/* Source: engine/api/routes/guardrails.py:91 (response model: GuardrailRegistration in engine/api/models.py:133) */}

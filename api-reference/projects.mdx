@@ -1,0 +1,19 @@
+---
+title: "List Projects"
+api: "GET http://localhost:8000/api/v1/projects"
+description: "Returns distinct service names seen in trace data"
+---
+
+Returns an array of distinct `ServiceName` values from the `otel_traces` table, sorted alphabetically. Used by the project / service selector in the dashboard.
+
+### Response
+
+A JSON array of strings.
+
+<ResponseExample>
+```json 200
+["billing-agent", "researcher", "support-bot"]
+```
+</ResponseExample>
+
+{/* Source: engine/api/routes/topology.py:13 */}

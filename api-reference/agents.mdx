@@ -1,0 +1,33 @@
+---
+title: "List Agents (Inventory)"
+api: "GET http://localhost:8000/api/v1/agents"
+description: "Full agent inventory with tool counts and prompt metadata"
+---
+
+Returns every agent in the inventory as an `AgentSummary`. Compared to [`/risk/agents`](/api-reference/risk-agents), this endpoint also exposes `tool_call_counts`, `total_tool_calls`, and the raw `system_prompt`.
+
+### Query Parameters
+
+<ParamField query="service" type="string">Filter agents by service name.</ParamField>
+
+### Response
+
+Array of agent objects:
+
+<ResponseField name="agent_id" type="string">Unique identifier</ResponseField>
+<ResponseField name="name" type="string">Human-readable name</ResponseField>
+<ResponseField name="framework" type="string">Detected framework</ResponseField>
+<ResponseField name="role" type="string">Agent role/purpose</ResponseField>
+<ResponseField name="model" type="string">LLM model in use</ResponseField>
+<ResponseField name="tools_observed" type="string[]">Tool names invoked by this agent</ResponseField>
+<ResponseField name="tool_call_counts" type="object">Map of `tool_name` to invocation count</ResponseField>
+<ResponseField name="total_tool_calls" type="integer">Sum of all tool calls</ResponseField>
+<ResponseField name="system_prompt" type="string">System prompt text (may be empty)</ResponseField>
+<ResponseField name="system_prompt_hash" type="string">SHA-256 hash of the system prompt (first 16 hex chars)</ResponseField>
+<ResponseField name="run_count" type="integer">Number of distinct runs</ResponseField>
+<ResponseField name="observation_count" type="integer">Total spans observed</ResponseField>
+<ResponseField name="maturity" type="string">`LEARNING` or `MATURE`</ResponseField>
+<ResponseField name="first_seen" type="string">ISO-8601 timestamp</ResponseField>
+<ResponseField name="last_seen" type="string">ISO-8601 timestamp</ResponseField>
+
+{/* Source: engine/api/routes/agents.py:12 (response model: AgentSummary in engine/api/models.py:20) */}

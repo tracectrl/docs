@@ -1,0 +1,77 @@
+---
+title: "Protector Plus Config"
+description: "Read, update, and test the TraceCtrl Guards (Protector Plus) configuration"
+---
+
+These endpoints manage the global TraceCtrl Guards configuration used to call the Protector Plus service.
+
+## Get config (redacted)
+
+```http
+GET http://localhost:8000/api/v1/guardrails/protector-config
+```
+
+Returns the stored config with `api_key` redacted (e.g. `hOjm***vY2`) so it can be safely surfaced in the Settings UI. If no config is set, returns an empty object with empty strings and an empty `enabled_guardrails` array.
+
+### Response — `ProtectorConfig`
+
+<ResponseField name="endpoint_url" type="string">Protector Plus endpoint URL</ResponseField>
+<ResponseField name="api_key" type="string">Redacted API key (first 4 chars + `***` + last 3)</ResponseField>
+<ResponseField name="enabled_guardrails" type="string[]">List of enabled Protector Plus guardrails</ResponseField>
+<ResponseField name="updated_at" type="string">ISO-8601 timestamp, or `null` if never set</ResponseField>
+
+## Upsert config
+
+```http
+PUT http://localhost:8000/api/v1/guardrails/protector-config
+```
+
+Upserts the global config. The full `api_key` must be provided in the body. The response is returned in **redacted** form so the UI does not see its freshly-sent key echoed back.
+
+### Request body — `ProtectorConfigUpsert`
+
+<ParamField body="endpoint_url" type="string" required>Protector Plus base URL (`http` or `https`). Trailing slash is stripped before storage.</ParamField>
+<ParamField body="api_key" type="string" required>Full API key.</ParamField>
+<ParamField body="enabled_guardrails" type="string[]" required>List of guardrail names. Each must be a known Protector Plus guardrail.</ParamField>
+
+### Errors
+
+- `400` — `endpoint_url is required`
+- `400` — `api_key is required`
+- `400` — URL fails SSRF validation (private/loopback/reserved IP, bad scheme, DNS failure)
+- `400` — `unknown guardrails: [...]` if a name is not in `PROTECTOR_GUARDRAILS`
+
+### Response
+
+Same `ProtectorConfig` shape as the GET above (redacted).
+
+## Test config
+
+```http
+POST http://localhost:8000/api/v1/guardrails/protector-test
+```
+
+Server-side health check against the stored endpoint. Issues a GET to `{endpoint_url}/api/protectorplus/v1/health` with a 5s timeout. Rejects non-public targets so the test cannot be turned into an SSRF probe.
+
+### Response — `ProtectorTestResult`
+
+<ResponseField name="ok" type="boolean">`true` if the upstream returned a 2xx</ResponseField>
+<ResponseField name="ms" type="integer">Round-trip time in milliseconds</ResponseField>
+<ResponseField name="status_code" type="integer">HTTP status code from the upstream, or `null`</ResponseField>
+<ResponseField name="error" type="string">Error description when `ok` is false, otherwise `null`</ResponseField>
+
+## SDK config fetch
+
+```http
+GET http://localhost:8000/api/v1/guardrails/protector-config/sdk
+```
+
+Returns the **unredacted** config for the SDK. Called once per agent process during `with tracectrl.guardrails():` setup. There is **no authentication** in v1 — the deployment is expected to bind the port to loopback or front it with an authenticated proxy. Returns an empty config (rather than 404) if none is set so the SDK can no-op cleanly.
+
+### Response — `ProtectorConfigUpsert`
+
+<ResponseField name="endpoint_url" type="string">Protector Plus endpoint URL</ResponseField>
+<ResponseField name="api_key" type="string">Full API key</ResponseField>
+<ResponseField name="enabled_guardrails" type="string[]">Enabled guardrails</ResponseField>
+
+{/* Source: engine/api/routes/guardrails.py:147,172,212,255 (models in engine/api/models.py:150-170) */}

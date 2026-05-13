@@ -1,0 +1,17 @@
+---
+title: "Recent Violations"
+api: "GET http://localhost:8000/api/v1/violations/recent"
+description: "Convenience endpoint for the most recent violations"
+---
+
+Returns the most recent violations. Equivalent to [`GET /violations`](/api-reference/violations) with no filter and a default `limit` of 20.
+
+### Query Parameters
+
+<ParamField query="limit" type="integer" default="20">Maximum rows to return.</ParamField>
+
+### Response
+
+Array of `Violation` objects — see [List Violations](/api-reference/violations) for field documentation.
+
+{/* Source: engine/api/routes/violations.py:34 */}
