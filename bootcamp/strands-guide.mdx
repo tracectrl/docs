@@ -588,17 +588,26 @@ The scanner reads `openclaw.json`, runs the check suite, and uploads results. Te
 
 ## View the Scan Report
 
-Open [http://localhost:3000/scan](http://localhost:3000/scan):
+Open [http://localhost:3000/scan](http://localhost:3000/scan). The page has two halves: the **architecture risk view** at the top, and the **findings list** grouped by category below it.
+
+### Architecture risk view
 
 <Frame>
-  <img src="/images/openclaw-scan-report.png" alt="TraceCtrl Scan Report page for an OpenClaw workspace. Top: risk topology graph with Anthropic LLM node visible. Filters: All (13 OPEN), Security (8 OPEN), Operational (2 OPEN), Compliance (3 OPEN). Severity tabs: All / Critical / High / Medium. Findings grouped by category — Advanced Security shows OC-SEC-002 (CRITICAL: No dangerous override flags enabled), OC-SEC-004 (HIGH: Agent sandbox is enabled), OC-SEC-005 (HIGH: Browser SSRF policy blocks private networks). Credentials shows OC-CRED-001 (HIGH: No plaintext API keys in configuration). Guardrails & Prompt Injection shows two MEDIUM findings (OC-GUARD-001, OC-GUARD-002)." />
+  <img src="/images/openclaw-scan-topology.png" alt="TraceCtrl Scan Report architecture view: 3 nodes, 2 edges. A 'main' agent hexagon (blue) at center, with an 'invokes' edge to the green octagonal 'web_fetch' tool and a 'calls' edge to the purple 'anthropic' LLM node. Bottom legend shows shapes for Ingress, Agent, Tool, LLM, Skill, Extension, Scheduler, Subagent and colours for critical/high/medium severity." />
 </Frame>
 
-Three things to notice on the report:
+Every agent, tool, LLM, skill, extension, scheduler, and sub-agent in your `openclaw.json` shows up as a node, with edges labelled by the relationship (`invokes`, `calls`, `delegates`). Node colours follow the highest-severity finding attached — so a node with a CRITICAL finding has a red border, HIGH is orange, MEDIUM is yellow.
 
-1. **Risk topology at the top** — every agent, tool, LLM, skill, extension, scheduler, and sub-agent in your OpenClaw config, coloured by the highest-severity finding attached to it.
-2. **Category filters** (Advanced Security, Credentials, Guardrails & Prompt Injection, Operational, Compliance) — each finding has a stable ID (`OC-SEC-002`, `OC-CRED-001`, etc.) so the same hardening recommendations track across rescans.
-3. **Rescan button** (top-right of the findings header) — re-runs the scan in place after you've edited the config. No CLI round-trip needed.
+### Findings list
+
+<Frame>
+  <img src="/images/openclaw-scan-findings.png" alt="TraceCtrl Scan Report findings list. Top: severity counts — All (13 OPEN), Security (8 OPEN), Operational (2 OPEN), Compliance (3 OPEN). Filter pills: All / Critical / High / Medium, Show passed checkbox, Agent Brief (13), Rescan button. Findings grouped by category: Advanced Security has 3 findings (OC-SEC-002 CRITICAL 'No dangerous override flags enabled', OC-SEC-004 HIGH 'Agent sandbox is enabled', OC-SEC-005 HIGH 'Browser SSRF policy blocks private networks'); Credentials has 1 (OC-CRED-001 HIGH 'No plaintext API keys in configuration'); Guardrails & Prompt Injection has 2 MEDIUM (OC-GUARD-001 'SOUL.md exists for each agent', OC-GUARD-002 'Content filter is enabled'); Network has 1 MEDIUM (OC-NET-003 'Gateway allowed hosts list is configured')." />
+</Frame>
+
+Two things worth knowing here:
+
+- **Stable finding IDs.** Every check has an ID like `OC-SEC-002` or `OC-CRED-001`. The same ID tracks across rescans, so you can wire it into PR descriptions or tickets.
+- **Rescan in place.** Edit `openclaw.json`, hit **Rescan** in the header — no CLI round-trip needed.
 
 ## What's Next (in person)
 
