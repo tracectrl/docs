@@ -11,23 +11,45 @@ Your Agent → SDK → OTel Collector → ClickHouse → Engine Pipeline → RES
 
 <Steps>
   <Step title="Agent emits spans">
-    The SDK's framework instrumentor captures every LLM call, tool invocation, and agent action as an OpenTelemetry span. The `TraceCtrlSpanProcessor` enriches each span with security attributes.
+    The SDK's framework instrumentor captures every LLM call, tool invocation, and agent action as an OpenTelemetry span. The `TraceCtrlSpanProcessor` enriches each span with `tracectrl.*` security attributes (agent id, tool category, session id, ingress markers).
   </Step>
 
   <Step title="Spans exported via OTLP">
-    The `BatchSpanProcessor` batches spans and exports them via OTLP gRPC to the OTel Collector at `:4317`.
+    The `BatchSpanProcessor` batches spans and exports them via OTLP gRPC to the OTel Collector at `:4317`. The batch flush interval is `TRACECTRL_BATCH_DELAY_MS` (default `1000`). {/* Sources: sdk/tracectrl/src/tracectrl/config.py:25, 107 */}
   </Step>
 
   <Step title="Collector routes to ClickHouse">
-    The OTel Collector receives spans and exports them to ClickHouse via the `clickhouseexporter`. Spans land in the `otel_traces` table with `SpanAttributes` stored as a `Map(String, String)`.
+    The OTel Collector receives spans on `:4317` (gRPC) and `:4318` (HTTP) and exports them to ClickHouse via the `clickhouseexporter`. Spans land in the `otel_traces` table with `SpanAttributes` stored as a `Map(String, String)`. {/* Sources: docker-compose.yml:7-9, config/otel-collector.yaml */}
   </Step>
 
   <Step title="Engine pipeline processes spans">
-    Every 60 seconds, the engine reads new spans since the last watermark, builds the agent inventory, and constructs topology edges.
+    Every `PIPELINE_INTERVAL_SECONDS` (default `60`), the engine re-reads all spans, refreshes the agent inventory, topology edges, guardrail registry, guardrail violations, and attack graph. ReplacingMergeTree deduplicates writes — no watermark required on the main path. {/* Sources: engine/pipeline/runner.py:14-37, engine/scheduler.py:23 */}
   </Step>
 
   <Step title="API serves processed data">
-    The REST API exposes the topology graph, agent details, session list, and span trees. The dashboard consumes these endpoints.
+    The REST API under `/api/v1` exposes system, topology, sessions, agents, risk, scan, violations, and guardrails routes. The dashboard consumes these endpoints; the violations route also exposes an SSE stream. {/* Sources: engine/main.py:37-44 */}
+  </Step>
+</Steps>
+
+## Protector Plus Call Path
+
+When TraceCtrl Guards is enabled, guardrail evaluations flow through the same span pipeline as everything else:
+
+<Steps>
+  <Step title="SDK call site">
+    User code calls `tracectrl.check_input(msg)` or `tracectrl.check_output(text)` inside a `with tracectrl.guard():` block.
+  </Step>
+  <Step title="Background POST to Protector Plus">
+    A background thread POSTs to the Protector Plus endpoint (`/apikey/api/protectorplus/v1/input-check` or `.../output-check`). The user call returns IMMEDIATELY with a `flagged=False` verdict stub — synchronous callers can `verdict.wait(timeout=...)`. {/* Sources: sdk/tracectrl/src/tracectrl/protector.py */}
+  </Step>
+  <Step title="SDK emits guardrail spans">
+    On the POST response, the background thread emits one `tracectrl.guardrail.evaluation` span per flagged sub-guardrail with `decision='fail'` and `tracectrl.guardrail.provider='protector_plus'`, parented to the span that was active at the call site.
+  </Step>
+  <Step title="Engine ingests violations">
+    On the next pipeline tick, `update_violations()` picks up the failing eval spans from `otel_traces` and inserts them into `guardrail_violations`. {/* Sources: engine/db/violations.py:21-155 */}
+  </Step>
+  <Step title="Alerts page surfaces them">
+    The `/alerts` page renders the feed (with an SSE-driven unread counter in the sidebar); the `/guardrails` page shows each Protector Plus sub-guardrail in the registry, registered via separate `tracectrl.guardrail.registered` spans emitted at `guard()` entry. {/* Sources: ui/src/App.tsx:36-37 */}
   </Step>
 </Steps>
 
@@ -44,7 +66,7 @@ TRACECTRL_FAIL_SILENTLY=false python your_agent.py
 ### 2. Is the Collector receiving spans?
 
 ```bash
-docker compose logs otel-collector 2>&1 | grep "TracesExporter"
+docker compose logs otel-collector 2>&1 | grep -i "traces"
 ```
 
 ### 3. Are spans in ClickHouse?
@@ -66,15 +88,24 @@ docker compose logs tracectrl-engine 2>&1 | grep "Pipeline run"
 curl http://localhost:8000/api/v1/topology/graph | python -m json.tool
 ```
 
+### 6. Are guardrail violations being ingested?
+
+```bash
+docker exec -it $(docker compose ps -q clickhouse) clickhouse-client \
+  --query "SELECT count() FROM tracectrl.guardrail_violations FINAL"
+```
+
 ## Latency
 
 | Stage | Typical Latency |
-|-------|----------------|
+|---|---|
 | SDK span processing | < 1ms per span |
-| Batch export to Collector | 1 second (configurable via `TRACECTRL_BATCH_DELAY_MS`) |
+| Batch export to Collector | 1 second (configurable via `TRACECTRL_BATCH_DELAY_MS`, default `1000`) |
 | Collector → ClickHouse | < 100ms |
-| Pipeline processing | 60 second cycle (configurable) |
+| Pipeline processing | 60 second cycle (configurable via `PIPELINE_INTERVAL_SECONDS`, default `60`) |
 | API response | < 50ms |
+
+{/* Sources: sdk/tracectrl/src/tracectrl/config.py:25, engine/scheduler.py:23 */}
 
 **End-to-end:** from agent action to dashboard visibility is typically **60-65 seconds**, dominated by the pipeline interval.
 

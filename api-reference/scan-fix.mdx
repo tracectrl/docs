@@ -1,0 +1,26 @@
+---
+title: "Apply Scan Fixes"
+api: "POST http://localhost:8000/api/v1/scan/fix"
+description: "Apply automated remediations to openclaw.json"
+---
+
+Runs the scanner's automated-fix functions against `openclaw.json` in the given workspace. A `.json.bak` backup is written before any change. The config file is rewritten only if at least one fix applied successfully.
+
+### Request body — `ScanFixPayload`
+
+<ParamField body="workspace_path" type="string" required>Path to the OpenClaw workspace (must contain `openclaw.json`).</ParamField>
+<ParamField body="check_ids" type="string[]" required>List of check IDs to attempt to fix.</ParamField>
+
+### Errors
+
+- `400` — `openclaw.json not found at workspace path`
+- `400` — Failed to parse `openclaw.json`
+- `503` — Scanner not installed (`pip install tracectrl-scanner`)
+
+### Response
+
+<ResponseField name="applied" type="string[]">Check IDs whose fix ran successfully</ResponseField>
+<ResponseField name="skipped" type="string[]">Check IDs with no registered automated fix</ResponseField>
+<ResponseField name="errors" type="object">Map of `check_id` to error message for fixes that raised</ResponseField>
+
+{/* Source: engine/api/routes/scan.py:318 */}

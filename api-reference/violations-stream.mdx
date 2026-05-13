@@ -1,0 +1,51 @@
+---
+title: "Stream Violations (SSE)"
+api: "GET http://localhost:8000/api/v1/violations/stream"
+description: "Server-Sent Events stream of guardrail violations"
+---
+
+A **Server-Sent Events** (SSE) endpoint that pushes guardrail violations to a long-lived HTTP connection. Used by the dashboard's live violations feed.
+
+Response `Content-Type` is `text/event-stream`. Use the browser `EventSource` API (or any SSE-aware client) to consume it.
+
+### Protocol
+
+On connect, the server emits:
+
+- `event: init` — `data` is a JSON array of the most recent 20 violations.
+
+Then every 2 seconds it polls for newly inserted rows and emits each one:
+
+- `event: violation` — `data` is a single violation JSON object.
+
+A `: heartbeat` comment is emitted every 15 seconds to keep the connection open through proxies.
+
+Each violation payload has the same fields as the [List Violations](/api-reference/violations) response.
+
+<Warning>
+The init payload is read **before** the watermark, which means a row inserted between the two reads can appear both in `init` and in the first poll. Clients must de-duplicate on `violation_id`.
+</Warning>
+
+### Example
+
+```js
+const es = new EventSource("http://localhost:8000/api/v1/violations/stream");
+const seen = new Set();
+
+es.addEventListener("init", (e) => {
+  for (const v of JSON.parse(e.data)) {
+    seen.add(v.violation_id);
+    render(v);
+  }
+});
+
+es.addEventListener("violation", (e) => {
+  const v = JSON.parse(e.data);
+  if (!seen.has(v.violation_id)) {
+    seen.add(v.violation_id);
+    render(v);
+  }
+});
+```
+
+{/* Source: engine/api/routes/violations.py:55 */}

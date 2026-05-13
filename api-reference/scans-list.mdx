@@ -1,0 +1,9 @@
+---
+title: "List Scans"
+api: "GET http://localhost:8000/api/v1/scans"
+description: "All stored scans with summary counts"
+---
+
+Returns a list of stored scans with summary counts. Shape is whatever `engine.db.scan_results.list_scans()` returns — see the database layer for the exact columns. Typically includes `scan_id`, `scanned_at`, `profile`, `scan_path`, and aggregate counts per severity.
+
+{/* Source: engine/api/routes/scan.py:177 */}

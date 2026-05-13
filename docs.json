@@ -48,7 +48,9 @@
               "sdk/installation",
               "sdk/configuration",
               "sdk/session-management",
-              "sdk/context-propagation"
+              "sdk/context-propagation",
+              "sdk/guardrails",
+              "sdk/protector-plus"
             ]
           },
           {
@@ -105,19 +107,50 @@
             "pages": [
               "api-reference/overview",
               "api-reference/health",
+              "api-reference/projects",
+              "api-reference/agents",
+              "api-reference/agent-tools",
               "api-reference/topology-graph",
               "api-reference/topology-agent",
               "api-reference/sessions",
               "api-reference/sessions-spans",
-              "api-reference/risk-agents"
+              "api-reference/sessions-latest-spans"
             ]
           },
           {
             "group": "Risk",
             "pages": [
               "api-reference/risk-summary",
+              "api-reference/risk-agents",
+              "api-reference/agent-scores",
               "api-reference/attack-paths",
-              "api-reference/agent-scores"
+              "api-reference/attack-graph-paths",
+              "api-reference/attack-graph-overlay"
+            ]
+          },
+          {
+            "group": "Scans",
+            "pages": [
+              "api-reference/scans-upload",
+              "api-reference/scans-list",
+              "api-reference/scans-latest",
+              "api-reference/scans-detail",
+              "api-reference/scan-validate-path",
+              "api-reference/scan-trigger",
+              "api-reference/scan-status",
+              "api-reference/scan-fix"
+            ]
+          },
+          {
+            "group": "Guardrails & Violations",
+            "pages": [
+              "api-reference/guardrails-list",
+              "api-reference/agent-guardrails",
+              "api-reference/guardrail-invocations",
+              "api-reference/protector-config",
+              "api-reference/violations",
+              "api-reference/violations-recent",
+              "api-reference/violations-stream"
             ]
           }
         ]

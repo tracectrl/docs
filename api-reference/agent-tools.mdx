@@ -1,0 +1,26 @@
+---
+title: "Get Agent Tools"
+api: "GET http://localhost:8000/api/v1/agents/{agent_id}/tools"
+description: "Tools used by a specific agent"
+---
+
+Returns each tool an agent has invoked, with call/error counts and first/last seen timestamps.
+
+### Path Parameters
+
+<ParamField path="agent_id" type="string" required>
+  The unique agent identifier.
+</ParamField>
+
+### Response
+
+Array of `AgentTool` objects:
+
+<ResponseField name="tool_name" type="string">Tool name</ResponseField>
+<ResponseField name="tool_category" type="string">Tool category (e.g., `memory_read`, `http`, `code_exec`)</ResponseField>
+<ResponseField name="call_count" type="integer">Total invocations</ResponseField>
+<ResponseField name="error_count" type="integer">Number of erroring invocations</ResponseField>
+<ResponseField name="first_seen" type="string">ISO-8601 timestamp</ResponseField>
+<ResponseField name="last_seen" type="string">ISO-8601 timestamp</ResponseField>
+
+{/* Source: engine/api/routes/agents.py:21 (response model: AgentTool in engine/api/models.py:38) */}

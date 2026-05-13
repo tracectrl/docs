@@ -1,0 +1,24 @@
+---
+title: "Get Scan"
+api: "GET http://localhost:8000/api/v1/scans/{scan_id}"
+description: "Results and topology for a specific scan"
+---
+
+### Path Parameters
+
+<ParamField path="scan_id" type="string" required>
+  Hex-encoded scan ID (1-12 chars, `[0-9a-f]`). Other inputs return `400 Invalid scan ID format`.
+</ParamField>
+
+### Errors
+
+- `400` — Invalid scan ID format
+- `404` — Scan not found
+
+### Response
+
+<ResponseField name="scan_id" type="string">Echo of the requested ID</ResponseField>
+<ResponseField name="results" type="object[]">Check rows stored for the scan</ResponseField>
+<ResponseField name="topology" type="object">Topology snapshot, or `null`</ResponseField>
+
+{/* Source: engine/api/routes/scan.py:239 */}

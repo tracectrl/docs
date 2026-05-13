@@ -24,24 +24,37 @@ STACK
 FastAPI engine (port 8000) · ClickHouse (9000) · OTel Collector (4317 gRPC / 4318 HTTP) · React/Vite dashboard (3000) · Python CLI
 
 INSTALL
-  git clone https://github.com/tracectrl/tracectrl.git && cd tracectrl
   python3 -m venv .venv && source .venv/bin/activate
-  pip install ./scanner && pip install ./sdk/tracectrl
+  pip install tracectrl tracectrl-scanner            # both on PyPI
+  # Then clone the repo (only needed for docker-compose + OpenClaw plugin source):
+  git clone https://github.com/tracectrl/tracectrl.git && cd tracectrl
   tracectrl setup        # interactive wizard, starts Docker containers
   tracectrl doctor       # verify all services are up
+  tracectrl install-plugin --configure   # install OpenClaw plugin (optional)
 
 KEY COMMANDS
+  tracectrl setup                                # interactive TUI setup wizard
+  tracectrl version                              # print SDK version
+  tracectrl doctor                               # check service health + plugin install
   tracectrl scan /absolute/path/to/.openclaw/    # run security scan, auto-uploads to dashboard
   tracectrl fix /absolute/path/to/.openclaw/ --auto   # apply safe auto-fixes
-  tracectrl scan /absolute/path/to/.openclaw/    # rescan after fixes
-  tracectrl doctor                                # check service health
-  tracectrl version
+  tracectrl monitor                              # verify OpenClaw diagnostics-otel is configured
+  tracectrl install-plugin [--configure]         # install the OpenClaw TraceCtrl plugin
 
 FLAGS
-  --engine-url URL     override engine URL (default: http://localhost:8000)
-  --no-upload          skip uploading results to engine
-  --dry-run            show fixes without applying (fix command only)
-  --profile L1|L2      scan profile (L1 = 33 checks default, L2 = 38 checks)
+  scan:
+    --json               output machine-readable JSON
+    --profile L1|L2      scan profile (L1 = default, L2 = extended)
+    --engine-url URL     override engine URL (default auto-discovers http://localhost:8000)
+    --no-upload          skip uploading results to engine
+  fix:
+    --auto               automatically apply all safe remediations
+    --dry-run            show fixes without applying
+    --engine-url URL     override engine URL for re-scan upload
+    --no-upload          skip uploading re-scan results
+  install-plugin:
+    --configure          auto-update openclaw.json to enable the plugin
+    --endpoint URL       OTEL endpoint for the plugin (default: http://localhost:4318)
 
 CRITICAL PATH WARNING
 Never run tracectrl as sudo or via sudo su. When elevated, ~ resolves to /root/ 
@@ -70,9 +83,24 @@ ENABLE RUNTIME TELEMETRY (add to openclaw.json, then `openclaw gateway restart`)
     "metrics": false, "logs": false, "sampleRate": 1.0, "flushIntervalMs": 5000 } }
 
 DASHBOARD
-  http://localhost:3000         main dashboard
-  http://localhost:3000/scan    scan results + topology
-  http://localhost:3000/sessions  trace viewer
+  http://localhost:3000/agents      agent inventory (default landing page)
+  http://localhost:3000/sessions    trace viewer
+  http://localhost:3000/alerts      runtime alerts + violations feed
+  http://localhost:3000/guardrails  guardrail policies (Protector Plus)
+  http://localhost:3000/risk        TAGAAI risk dashboard
+  http://localhost:3000/attacks     attack-graph paths
+  http://localhost:3000/scan        scan results + topology
+  http://localhost:3000/settings    workspace + project settings
+
+GUARDRAILS / PROTECTOR PLUS
+  TraceCtrl ships runtime guardrails via `tracectrl.protector`:
+    from tracectrl import check_input, check_output, guard, GuardrailVerdict
+  - `check_input(text)` / `check_output(text)` return a `GuardrailVerdict`
+    (allow / block / redact) for prompt-injection, PII, and policy violations.
+  - `@guard` decorates an agent/tool callable to enforce policies automatically
+    and emit a violation span to the engine.
+  - Violations surface at /guardrails (policy view) and /alerts (live feed),
+    and are queryable via the Engine API guardrails/violations endpoints.
 
 DOCKER SOCKET
   If `tracectrl setup` fails with "permission denied on docker socket":
@@ -98,7 +126,7 @@ REPO LAYOUT
   sdk/tracectrl/src/tracectrl/cli.py                All CLI commands
   sdk/tracectrl/src/tracectrl/instrumentors/        Framework instrumentors (strands, langchain, etc.)
   plugins/openclaw-tracectrl/src/                   Node.js OpenClaw plugin (TypeScript)
-  ui/src/pages/             React pages (ScanReport, Sessions, Agents, RiskDashboard, AttackPaths)
+  ui/src/pages/             React pages (Agents, Sessions, Alerts, Guardrails, Risk, Attacks, ScanReport, Settings)
   ui/src/components/        Shared components (ScanTopologyCanvas, TraceTreeView, ScanNodePanel)
   ui/src/api/               API clients (scan.ts, sessions.ts, config.ts)
   setup/tui.py              Textual TUI setup wizard

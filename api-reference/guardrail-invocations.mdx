@@ -1,0 +1,33 @@
+---
+title: "Guardrail Invocations"
+api: "GET http://localhost:8000/api/v1/guardrails/invocations"
+description: "Recent guardrail evaluation spans"
+---
+
+Recent `tracectrl.guardrail.evaluation` spans for a specific `(agent_id, guardrail_name)` pair, ordered newest first. Reads directly from `otel_traces` and does not depend on the analytics pipeline tick.
+
+### Query Parameters
+
+<ParamField query="agent_id" type="string" required>The agent that owns the guardrail.</ParamField>
+<ParamField query="guardrail_name" type="string" required>The guardrail to query.</ParamField>
+<ParamField query="limit" type="integer" default="50">Maximum rows to return.</ParamField>
+
+Returns `400` if `agent_id` or `guardrail_name` is missing.
+
+### Response
+
+Array of `GuardrailInvocation` objects:
+
+<ResponseField name="trace_id" type="string">Trace ID of the evaluation span</ResponseField>
+<ResponseField name="span_id" type="string">Span ID of the evaluation span</ResponseField>
+<ResponseField name="observed_at" type="string">ISO-8601 timestamp</ResponseField>
+<ResponseField name="decision" type="string">`pass`, `fail`, or `error`</ResponseField>
+<ResponseField name="timing" type="string">`pre_input` or `post_output`</ResponseField>
+<ResponseField name="reason" type="string">Judge's reasoning</ResponseField>
+<ResponseField name="evidence" type="string">Evidence captured at evaluation time</ResponseField>
+<ResponseField name="severity" type="string">Severity level</ResponseField>
+<ResponseField name="provider" type="string">`judge_llm` or `protector_plus`</ResponseField>
+<ResponseField name="judge_model" type="string">Model used for the decision</ResponseField>
+<ResponseField name="response_json" type="string">Structured response payload (Protector Plus only; empty for legacy judge_llm spans)</ResponseField>
+
+{/* Source: engine/api/routes/guardrails.py:112 (response model: GuardrailInvocation in engine/api/models.py:113) */}

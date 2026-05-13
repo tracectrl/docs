@@ -1,17 +1,34 @@
 ---
 title: "Attack Paths"
-api: "GET /api/v1/risk/attack-paths"
+api: "GET http://localhost:8000/api/v1/risk/attack-paths"
 description: "Ranked attack paths from TAGAAI rules"
 ---
 
 Returns all detected attack paths ordered by risk score descending.
 
-<ParamField query="service" type="string" optional>Filter by service name</ParamField>
+### Query Parameters
+
+<ParamField query="service" type="string">Filter by service name</ParamField>
+
+### Response
+
+Array of attack path objects:
 
 <ResponseField name="path_id" type="string">Unique path identifier</ResponseField>
-<ResponseField name="rule_name" type="string">TAGAAI rule that fired (e.g., vulnerableToExcessiveAgency)</ResponseField>
-<ResponseField name="owasp_category" type="string">OWASP ASI category (ASI01, ASI02, etc.)</ResponseField>
+<ResponseField name="rule_name" type="string">TAGAAI rule that fired (e.g., `vulnerableToExcessiveAgency`)</ResponseField>
+<ResponseField name="owasp_tag" type="string">OWASP ASI category tag (e.g., `ASI01`)</ResponseField>
 <ResponseField name="agents_involved" type="string[]">Agent IDs in the attack chain</ResponseField>
-<ResponseField name="path_steps" type="object[]">Step-by-step attack chain</ResponseField>
+<ResponseField name="path_steps" type="object[]">
+  Step-by-step attack chain. Each step has:
+  <Expandable>
+    <ResponseField name="node_id" type="string">Node identifier</ResponseField>
+    <ResponseField name="node_type" type="string">Type of node (agent, tool, ingress)</ResponseField>
+    <ResponseField name="vulnerability" type="string">Vulnerability label</ResponseField>
+    <ResponseField name="description" type="string">Human-readable description</ResponseField>
+  </Expandable>
+</ResponseField>
 <ResponseField name="risk_score" type="float">Computed risk score</ResponseField>
 <ResponseField name="severity" type="string">Critical, High, Medium, or Low</ResponseField>
+<ResponseField name="detected_at" type="string">ISO-8601 timestamp when this path was detected</ResponseField>
+
+{/* Source: engine/api/routes/risk.py:22 (response model: AttackPath in engine/api/models.py:68) */}

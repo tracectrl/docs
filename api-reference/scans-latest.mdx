@@ -1,0 +1,31 @@
+---
+title: "Latest Scan"
+api: "GET http://localhost:8000/api/v1/scans/latest"
+description: "Most recent scan results with config drift detection"
+---
+
+Returns the most recent scan plus drift metadata that lets the dashboard warn when the `openclaw.json` on disk has changed since the scan ran.
+
+### Response
+
+<ResponseField name="scan_id" type="string">Identifier of the latest scan, or `null` if none</ResponseField>
+<ResponseField name="results" type="object[]">Check rows for that scan</ResponseField>
+<ResponseField name="topology" type="object">Topology snapshot stored with the scan, or `null`</ResponseField>
+<ResponseField name="config_changed" type="boolean">`true` if the current `openclaw.json` hash differs from the hash recorded at scan time</ResponseField>
+<ResponseField name="config_hash_at_scan" type="string">SHA-256[:16] of `openclaw.json` when the scan ran</ResponseField>
+<ResponseField name="config_hash_current" type="string">SHA-256[:16] of `openclaw.json` right now</ResponseField>
+<ResponseField name="days_since_scan" type="integer">Whole days since the scan was recorded, or `null` if unknown</ResponseField>
+
+When no scans have been recorded:
+
+```json 200
+{
+  "scan_id": null,
+  "results": [],
+  "topology": null,
+  "config_changed": false,
+  "days_since_scan": null
+}
+```
+
+{/* Source: engine/api/routes/scan.py:187 */}

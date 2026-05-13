@@ -12,24 +12,52 @@ Every span captured by TraceCtrl carries two layers of attributes:
 
 ## TraceCtrl Security Attributes
 
-These are the `tracectrl.*` attributes added to every span:
+These are the `tracectrl.*` attributes added to spans by the `TraceCtrlSpanProcessor`:
 
 | Attribute | Type | Description |
 |-----------|------|-------------|
 | `tracectrl.agent.id` | `string` | Unique agent identifier. Derived from framework metadata or agent name. |
 | `tracectrl.agent.name` | `string` | Human-readable agent name. |
-| `tracectrl.agent.role` | `string` | Agent's role or purpose (e.g., "Researcher", "Writer"). |
-| `tracectrl.agent.framework` | `string` | Detected framework: `langchain`, `crewai`, `agno`, `google_adk`, `strands`. |
-| `tracectrl.session_id` | `string` | Session correlation ID. Groups related spans across a conversation. |
+| `tracectrl.agent.role` | `string` | Agent's role or purpose (e.g., "Researcher", "Writer"). Set by user code; the SDK reserves the attribute but does not infer it. |
+| `tracectrl.agent.framework` | `string` | Detected framework. Inferred from span naming conventions. One of: `strands`, `openclaw`, `agno`, `unknown`. |
+| `tracectrl.session_id` | `string` | Session correlation ID. Groups related spans across a conversation. Falls back to Agno's `session.id` if not explicitly set. |
 | `tracectrl.caller.agent_id` | `string` | The agent that triggered this span (for multi-agent delegation). |
 | `tracectrl.input.source` | `string` | Input provenance: `user`, `agent`, `external`, or `memory`. |
 | `tracectrl.tool.category` | `string` | Risk category of the tool. See [Tool Categories](/security/tool-categories). |
+| `tracectrl.tool.direction` | `string` | Tool data-flow direction: `input` (ingress), `output` (egress), or `internal`. |
 | `tracectrl.tool.target` | `string` | Target resource of the tool call (e.g., URL, file path). |
 | `tracectrl.memory.operation` | `string` | Memory operation type: `read` or `write`. |
 | `tracectrl.memory.store_id` | `string` | Identifier of the memory/vector store. |
-| `tracectrl.memory.write_provenance` | `string` | Origin of data being written to memory. |
+| `tracectrl.memory.write_provenance` | `string` | Origin of data being written to memory (mirrors the producing span's `input.source`). |
 | `tracectrl.system_prompt_hash` | `string` | SHA-256 hash (first 16 hex chars) of the system prompt. Used for prompt drift detection. |
-| `tracectrl.span_sequence` | `int` | Sequence number within the trace. |
+| `tracectrl.span_sequence` | `string` | Monotonic counter per session, stamped at span end. |
+| `tracectrl.ingress` | `boolean` | `true` when the span has no valid parent context (root-span / entry-point detection). |
+| `tracectrl.trigger_type` | `string` | Inferred trigger for ingress spans: `email`, `upload`, `webhook`, `scheduled`, or `manual`. |
+
+## Guardrail Span Attributes
+
+When Protector Plus or an in-SDK LLM-judge guardrail evaluates a message, a dedicated `tracectrl.guardrail.evaluation` span is emitted. A `tracectrl.guardrail.registered` span is emitted once per enabled guardrail at startup.
+
+| Attribute | Type | Description |
+|-----------|------|-------------|
+| `tracectrl.guardrail.name` | `string` | Fully-qualified guardrail identifier (e.g., `protector_plus.pii`). |
+| `tracectrl.guardrail.decision` | `string` | `pass`, `fail`, or `error`. |
+| `tracectrl.guardrail.provider` | `string` | Provider, e.g. `protector_plus`. |
+| `tracectrl.guardrail.judge_model` | `string` | Judge model identifier (e.g., `protector_plus:pii`). |
+| `tracectrl.guardrail.severity` | `string` | Severity classification of the rule. |
+| `tracectrl.guardrail.timing` | `string` | When the check ran: `pre_input` or `post_output`. |
+| `tracectrl.guardrail.reason` | `string` | Short explanation of the verdict. |
+| `tracectrl.guardrail.evidence` | `string` | Triggering message, truncated to 2048 chars. |
+| `tracectrl.guardrail.response_json` | `string` | Full provider response payload, capped at 8KB. |
+| `tracectrl.guardrail.evaluated_at` | `string` | ISO-8601 UTC timestamp of evaluation. |
+| `tracectrl.guardrail.mode` | `string` | Registration-only: e.g. `monitoring`. |
+| `tracectrl.guardrail.description` | `string` | Registration-only: human-readable rule description. |
+| `tracectrl.guardrail.judge_prompt` | `string` | Registration-only: judge prompt template (in-SDK judges). |
+| `tracectrl.guardrail.registered_at` | `string` | Registration-only: ISO-8601 timestamp. |
+| `tracectrl.guardrail.health` | `string` | Registration-only: e.g. `active`. |
+| `tracectrl.guardrail.health_reason` | `string` | Registration-only: reason for current health state. |
+
+{/* Sources: sdk/tracectrl/src/tracectrl/protector.py lines 245-299 (registered span) and 487-540 (evaluation span); sdk/tracectrl/src/tracectrl/guardrails/guardrail.py lines 77-106 (in-SDK judge spans) */}
 
 ## OpenInference Attributes
 
@@ -54,20 +82,41 @@ Import attribute names as constants to avoid typos:
 
 ```python
 from tracectrl.schema import (
+    # TraceCtrl security fields
     TC_AGENT_ID,
     TC_AGENT_NAME,
-    TC_TOOL_CATEGORY,
+    TC_AGENT_ROLE,
+    TC_AGENT_FRAMEWORK,
     TC_SESSION_ID,
+    TC_CALLER_AGENT_ID,
     TC_INPUT_SOURCE,
+    TC_TOOL_CATEGORY,
+    TC_TOOL_DIRECTION,
+    TC_TOOL_TARGET,
+    TC_MEMORY_OPERATION,
+    TC_MEMORY_STORE_ID,
+    TC_MEMORY_WRITE_PROVENANCE,
     TC_SYSTEM_PROMPT_HASH,
+    TC_SPAN_SEQUENCE,
+    # Ingress detection
+    TC_INGRESS,
+    TC_TRIGGER_TYPE,
+    # Standard OpenInference fields
     OI_SPAN_KIND,
     INPUT_VALUE,
     OUTPUT_VALUE,
     LLM_MODEL_NAME,
+    LLM_SYSTEM,
+    LLM_PROMPT_TEMPLATE,
     TOOL_NAME,
+    TOOL_DESCRIPTION,
+    TOOL_PARAMETERS,
+    RETRIEVAL_DOCUMENTS,
 )
 ```
 
 <Tip>
   The `tracectrl.system_prompt_hash` attribute enables **prompt drift detection** — if the hash changes between observations, the system prompt was modified. This is a key indicator for prompt injection attacks.
 </Tip>
+
+{/* Sources: sdk/tracectrl/src/tracectrl/{schema.py,processor.py,protector.py,guardrails/guardrail.py} */}

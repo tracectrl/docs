@@ -21,7 +21,7 @@ tracectrl.configure(
 ### Parameters
 
 <ParamField path="endpoint" type="string">
-  The OTel Collector gRPC endpoint. Defaults to `http://localhost:4317`. Use `http://otel-collector:4317` when your agent runs inside Docker.
+  The OTel Collector gRPC endpoint. Defaults to `http://localhost:4317`. Use `http://otel-collector:4317` when your agent runs inside Docker. The SDK strips the scheme and routes via gRPC; `https://` URLs switch the exporter to TLS, anything else uses insecure mode.
 </ParamField>
 
 <ParamField path="service_name" type="string">
@@ -36,6 +36,10 @@ tracectrl.configure(
   When `true`, exporter failures are logged as warnings instead of raising exceptions. Defaults to `true` — your agent never crashes because tracing fails.
 </ParamField>
 
+<Note>
+  `configure()` accepts only the four kwargs above. Batch tuning (`TRACECTRL_BATCH_DELAY_MS`, `TRACECTRL_MAX_BATCH_SIZE`) is environment-only.
+</Note>
+
 ## Environment Variables
 
 All configuration can also be set via environment variables. Programmatic values take precedence.
@@ -49,6 +53,7 @@ All configuration can also be set via environment variables. Programmatic values
 | `TRACECTRL_MAX_BATCH_SIZE` | `512` | Maximum spans per export batch |
 | `TRACECTRL_FAIL_SILENTLY` | `true` | Suppress exporter errors |
 | `TRACECTRL_SESSION_ID` | — | Override auto-generated session ID |
+| `TRACECTRL_API_URL` | `http://localhost:8000` | Engine HTTP base — used to fetch Protector Plus config |
 
 ## Platform Environment Variables
 
@@ -62,26 +67,51 @@ These are used by the TraceCtrl Engine and Docker stack, not the SDK:
 | `PIPELINE_INTERVAL_SECONDS` | `60` | Pipeline processing interval |
 | `VITE_ENGINE_URL` | `http://localhost:8000` | Engine API URL (baked into UI at build) |
 
+## Tagging Agents
+
+Most agent frameworks do not emit the system prompt on their OTEL spans. Call `tag_agent` once per agent so TraceCtrl can attribute spans to a named agent in the dashboard:
+
+```python
+import tracectrl
+from tracectrl import tag_agent, tag_agents
+from strands import Agent
+
+tracectrl.configure(service_name="finflow")
+
+orchestrator = Agent(name="orchestrator", system_prompt="...")
+payment = Agent(name="payment", system_prompt="...")
+
+# Single agent — auto-introspects system_prompt / system / instructions
+tag_agent(orchestrator)
+
+# Or bulk-tag several at once
+tag_agents(orchestrator, payment)
+```
+
+`tag_agent` is idempotent and installs a `SystemPromptStamper` SpanProcessor on the shared `TracerProvider` so that every subsequent agent-run span carries `tracectrl.agent.system_prompt` and a 16-character SHA-256 hash.
+
 ## TracerProvider
 
 The SDK lazily creates a shared `TracerProvider` with:
 - An OTLP gRPC exporter pointed at your endpoint
 - A `BatchSpanProcessor` for async export (configurable batch size and delay)
-- The `TraceCtrlSpanProcessor` for security enrichment
+- The `SystemPromptStamper` for agent attribution
 
 If you need to pass a custom `TracerProvider`, you can skip `configure()` and pass it directly:
 
 ```python
-from tracectrl.instrumentation.langchain import LangChainInstrumentor
+from tracectrl.instrumentation.strands import StrandsInstrumentor
 
-LangChainInstrumentor().instrument(tracer_provider=your_custom_provider)
+StrandsInstrumentor().instrument(tracer_provider=your_custom_provider)
 ```
 
 <Warning>
-  When using a custom TracerProvider, you must manually add the `TraceCtrlSpanProcessor` to get security enrichment:
+  When using a custom `TracerProvider`, you must manually add the security-enrichment processor to get TraceCtrl span attributes:
 
   ```python
   from tracectrl.processor import TraceCtrlSpanProcessor
   your_custom_provider.add_span_processor(TraceCtrlSpanProcessor())
   ```
 </Warning>
+
+{/* Sources: tracectrl/sdk/tracectrl/src/tracectrl/{config.py,__init__.py,agent_tagging.py,processor.py,protector.py} */}

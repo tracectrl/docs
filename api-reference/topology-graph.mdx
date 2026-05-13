@@ -6,6 +6,10 @@ description: "Returns the full agent-tool topology graph"
 
 Returns all agent nodes, tool nodes, and their edges. Used by the dashboard's Topology page.
 
+### Query Parameters
+
+<ParamField query="service" type="string">Filter the graph to a single service name.</ParamField>
+
 ### Response
 
 <ResponseField name="nodes" type="array">
@@ -73,3 +77,5 @@ Returns all agent nodes, tool nodes, and their edges. Used by the dashboard's To
 }
 ```
 </ResponseExample>
+
+{/* Source: engine/api/routes/topology.py:20 */}

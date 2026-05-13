@@ -1,0 +1,20 @@
+---
+title: "Validate Workspace Path"
+api: "POST http://localhost:8000/api/v1/scan/validate-path"
+description: "Check whether a filesystem path is a valid OpenClaw workspace"
+---
+
+Used by the dashboard before kicking off a scan. The path is validated server-side because the dashboard runs in a browser that cannot inspect the engine host's filesystem.
+
+### Request body — `ValidatePathPayload`
+
+<ParamField body="path" type="string" required>Absolute filesystem path (whitespace is trimmed).</ParamField>
+
+### Response
+
+<ResponseField name="valid" type="boolean">`true` if the path exists and contains `openclaw.json`</ResponseField>
+<ResponseField name="openclaw_json_found" type="boolean">Whether `openclaw.json` was found</ResponseField>
+<ResponseField name="path" type="string">Echo of the resolved path</ResponseField>
+<ResponseField name="error" type="string">Reason for failure when `valid` is false (e.g. `Path does not exist`, `Not an OpenClaw workspace (no openclaw.json found)`)</ResponseField>
+
+{/* Source: engine/api/routes/scan.py:256 */}

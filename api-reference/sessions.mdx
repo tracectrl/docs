@@ -6,6 +6,10 @@ description: "Returns recent traces grouped as sessions"
 
 Returns the most recent 200 traces, each summarized with root span info, agent name, span count, duration, and error status.
 
+### Query Parameters
+
+<ParamField query="service" type="string">Filter sessions by service name.</ParamField>
+
 ### Response
 
 Array of session summary objects:
@@ -37,3 +41,5 @@ Array of session summary objects:
 ]
 ```
 </ResponseExample>
+
+{/* Source: engine/api/routes/sessions.py:12 */}

@@ -5,11 +5,11 @@ description: "Correlate spans across a user session or conversation"
 
 ## Overview
 
-TraceCtrl uses Python's `contextvars` to maintain a session ID per thread or async context. All spans within a session share the same `tracectrl.session_id` attribute, enabling session-level trace grouping.
+TraceCtrl uses Python's `contextvars` to maintain a session ID per thread or async context. Session IDs are stored on a `ContextVar` named `tracectrl_session_id`, which means they are isolated per thread and per async task automatically.
 
 ## Automatic Session IDs
 
-The SDK generates a UUID session ID automatically when you call `new_session()`:
+The SDK generates a UUID session ID when you call `new_session()`:
 
 ```python
 from tracectrl.session import new_session, current_session_id
@@ -17,9 +17,10 @@ from tracectrl.session import new_session, current_session_id
 sid = new_session()
 print(sid)  # e.g., "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 
-# All spans created after this point carry this session ID
 print(current_session_id())  # same value
 ```
+
+If the environment variable `TRACECTRL_SESSION_ID` is set, `new_session()` uses that value instead of generating a UUID.
 
 ## Manual Session IDs
 
@@ -28,42 +29,42 @@ Override with your own session ID — useful for tying traces to your applicatio
 ```python
 from tracectrl.session import set_session_id
 
-# Use your app's session ID
 set_session_id("user-session-abc123")
 ```
 
 ## Environment Variable Override
 
-Set `TRACECTRL_SESSION_ID` to force a specific session ID globally:
+Set `TRACECTRL_SESSION_ID` to force a specific session ID for any call to `new_session()`:
 
 ```bash
 export TRACECTRL_SESSION_ID="fixed-session-for-testing"
 ```
 
-When this env var is set, `new_session()` returns its value instead of generating a UUID.
+`set_session_id()` ignores the env var — it always writes the value passed in.
 
 ## API Reference
 
-### `new_session() → str`
+### `new_session() -> str`
 
 Generates a new session ID (or reads from `TRACECTRL_SESSION_ID`) and stores it in the current context. Returns the session ID.
 
-### `current_session_id() → str | None`
+### `current_session_id() -> str | None`
 
-Returns the current session ID, or `None` if `new_session()` or `set_session_id()` hasn't been called yet.
+Returns the current session ID, or `None` if `new_session()` or `set_session_id()` hasn't been called yet in this context.
 
-### `set_session_id(sid: str) → None`
+### `set_session_id(sid: str) -> None`
 
 Explicitly sets the session ID. Use this for cross-agent session propagation — when Agent B receives a session ID from Agent A, call `set_session_id()` to continue the session.
 
 ## Multi-Agent Sessions
 
-In a multi-agent system where agents communicate via HTTP:
+In a multi-agent system where agents communicate via HTTP, send the session ID in a custom header alongside the W3C `traceparent`:
 
 ```python
 # Agent A — outgoing request
 from tracectrl.session import current_session_id
 from tracectrl.context import inject_trace_headers
+import requests
 
 headers = inject_trace_headers()
 headers["X-TraceCtrl-Session"] = current_session_id()
@@ -80,6 +81,10 @@ set_session_id(request.headers["X-TraceCtrl-Session"])
 # All spans now share the same session and trace
 ```
 
+The `X-TraceCtrl-Session` header name is a TraceCtrl convention — pick anything you want as long as both sides agree, but stick with this name and the dashboard will recognise it.
+
 <Tip>
-  Session IDs are stored in `contextvars`, so they are automatically isolated between threads and async tasks. Each concurrent request gets its own session context.
+  Session IDs are stored in `contextvars`, so they are isolated between threads and async tasks. Each concurrent request gets its own session context with no extra plumbing.
 </Tip>
+
+{/* Sources: tracectrl/sdk/tracectrl/src/tracectrl/session.py */}

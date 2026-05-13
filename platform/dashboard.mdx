@@ -1,70 +1,108 @@
 ---
 title: "Dashboard"
-description: "React dashboard for visualizing agent topology and traces"
+description: "React dashboard for visualizing agents, traces, alerts, guardrails, and attack paths"
 ---
 
 ## Overview
 
-The TraceCtrl Dashboard is a React + Vite + TypeScript SPA that visualizes your agentic system in real time.
+The TraceCtrl Dashboard is a React + Vite + TypeScript SPA. Access it at [http://localhost:3000](http://localhost:3000) after starting the stack (port `3001` in dev mode). {/* Sources: docker-compose.yml:51-52, docker-compose.dev.yml */}
 
-Access it at [http://localhost:3000](http://localhost:3000) after starting the stack.
+The sidebar is grouped into **Monitor**, **Security**, and **Configure** sections. `/` redirects to `/agents`. {/* Sources: ui/src/App.tsx:75-120, 145-158 */}
 
-## Pages
+## Routes
 
-### Topology
+| Path | Section | Page |
+|---|---|---|
+| `/` | — | Redirect to `/agents` |
+| `/agents` | Monitor | Agent inventory |
+| `/sessions` | Monitor | Sessions list |
+| `/sessions/:traceId` | Monitor | Trace detail |
+| `/topology` | Monitor | Topology graph |
+| `/alerts` | Security | Guardrail violations feed |
+| `/guardrails` | Security | Registered guardrails |
+| `/scan` | Security | Static scan report |
+| `/risk` | Security | Risk dashboard |
+| `/attacks` | Security | Attack paths |
+| `/settings` | Configure | Settings (incl. TraceCtrl Guards config) |
+| `/setup` | (not in sidebar) | Onboarding |
 
-Interactive graph visualization built with Cytoscape.js and dagre layout.
+{/* Sources: ui/src/App.tsx:145-158, ui/src/App.tsx:32-42 */}
 
-- **Agent nodes** (blue) — each discovered agent with name, framework, and maturity
-- **Tool nodes** (green) — each tool connected to its owning agent
-- **Edges** — solid lines for agent-to-agent delegation, dashed lines for agent-to-tool usage
-- **Legend** — color-coded with connection type labels
-- **Attacker View Toggle** — switch to an attacker perspective that highlights attack paths overlaid on the topology graph, showing exploitable chains in red
-- **Phase Overlay** — "Show Phases" groups concurrent agents into execution phases with "then" arrows showing sequential flow
-- **Replay Scrubber** — drag the timeline slider to highlight which agents are active at any point in time
-- **Project Selector** — sidebar dropdown filters all pages by service name
-- **Light/Dark Theme** — toggle in the sidebar footer, persists across sessions
-- Click any node to see its full metadata in the sidebar panel
-
-### Sessions
-
-Trace explorer with inline expansion — click any session row to see:
-
-- **Trace Tree** — vertical tree with emoji icons per span type, indented connector lines, expand/collapse, and duration labels
-- **Span Detail Panel** — click any node in the tree to see timing, input/output values, grouped attributes (TraceCtrl, OpenInference, etc.), and resource metadata
-- **Waterfall Column** — proportional duration bars in the session table for at-a-glance comparison
-- **Sortable Table** — sort by root span name, span count, duration, or time
-
-### Risk Dashboard
-
-CISO-level risk overview powered by the TAGAAI attack graph engine.
-
-- **System Risk Score** — single 0-10 score with severity badge (Critical / High / Medium / Low)
-- **Stat Cards** — critical paths count, agents at risk, learning agents (< 10 observations)
-- **Per-Agent Risk Table** — sortable table showing each agent's highest risk score, severity, attack path count, and top triggering rule
-- **Computed At** — timestamp of the last risk computation cycle
-
-### Attack Paths
-
-Ranked list of exploitation chains detected by TAGAAI rules.
-
-- **Path List** — ordered by risk score descending, each entry shows rule name, OWASP category, severity badge, and involved agents
-- **Expandable Step Chains** — click any path to reveal the full step-by-step attack chain from entry point to impact
-- **Service Filter** — filter paths by service name
+## Monitor
 
 ### Agents
 
 Agent inventory view showing all discovered agents and their metadata.
 
-- **Agent Table** — name, framework, maturity level, observation count, and tool list
-- **Tool Expansion** — click any agent row to expand and see all observed tools with their risk categories
+- **Agent Table** — name, framework, maturity level, observation count, and tool list.
+- **Tool Expansion** — click any agent row to expand and see all observed tools with their risk categories.
+
+### Sessions
+
+Trace explorer. The list page (`/sessions`) shows one row per trace; clicking a row navigates to `/sessions/:traceId` for the detail view.
+
+- **Trace Tree** — vertical tree with icons per span type, indented connectors, expand/collapse, and duration labels.
+- **Span Detail Panel** — click any node in the tree to see timing, input/output values, grouped attributes (TraceCtrl, OpenInference, etc.), and resource metadata.
+- **Waterfall Column** — proportional duration bars in the session table for at-a-glance comparison.
+- **Sortable Table** — sort by root span name, span count, duration, or time.
+
+### Topology
+
+Interactive graph visualization built with Cytoscape.js and dagre layout.
+
+- **Agent nodes** (blue) — each discovered agent with name, framework, and maturity.
+- **Tool nodes** (green) — each tool connected to its owning agent.
+- **Edges** — solid lines for agent-to-agent delegation, dashed lines for agent-to-tool usage.
+- **Attacker View Toggle** — switch to an attacker perspective that overlays exploitable chains in red.
+- **Phase Overlay** — "Show Phases" groups concurrent agents into execution phases with sequential "then" arrows.
+- **Replay Scrubber** — drag the timeline slider to highlight which agents are active at any point in time.
+- **Project Selector** — sidebar dropdown filters all pages by service name.
+- **Light/Dark Theme** — toggle in the sidebar footer, persists across sessions.
+- Click any node to see its full metadata in the sidebar panel.
+
+## Security
+
+### Alerts
+
+Live feed of guardrail violations (failing `tracectrl.guardrail.evaluation` spans). The sidebar shows an unread-count dot when there are new violations since last visit. Server-Sent Events push new rows as the engine ingests them. {/* Sources: ui/src/App.tsx:36, engine/db/violations.py */}
+
+### Guardrails
+
+Registry of all guardrails that have been registered by the SDK (both in-process LLM judges and Protector Plus sub-guardrails). Each row shows agent, name, severity, mode (`monitoring`/`blocking`), timing (`pre_input`/`post_output`), provider (`judge_llm`/`protector_plus`), health, and 24h activity. {/* Sources: engine/db/guardrail_registry.py:286-360 */}
+
+### Scan Report
+
+Output of the static OpenClaw analysis run from `/api/v1/scan`. Shows per-check pass/fail with findings and remediation, plus a static topology snapshot.
+
+### Risk Dashboard
+
+CISO-level risk overview powered by the TAGAAI attack graph engine.
+
+- **System Risk Score** — single 0-10 score with severity badge (Critical / High / Medium / Low).
+- **Stat Cards** — critical paths count, agents at risk, learning agents (< 10 observations).
+- **Per-Agent Risk Table** — sortable table showing each agent's highest risk score, severity, attack path count, and top triggering rule.
+- **Computed At** — timestamp of the last risk computation cycle.
+
+### Attack Paths
+
+Ranked list of exploitation chains detected by TAGAAI rules.
+
+- **Path List** — ordered by risk score descending; each entry shows rule name, OWASP category, severity badge, and involved agents.
+- **Expandable Step Chains** — click any path to reveal the full step-by-step attack chain from entry point to impact.
+- **Service Filter** — filter paths by service name.
+
+## Configure
+
+### Settings
+
+Application settings, including the TraceCtrl Guards / Protector Plus configuration UI: endpoint URL, API key, and which of the seven Protector Plus sub-guardrails (`llm`, `keyword`, `regex`, `pii`, `vector`, `content_moderation`, `system_prompt_protection`) are enabled. Values persist to the `protector_plus_config` table and are fetched by the SDK at startup. {/* Sources: sdk/tracectrl/src/tracectrl/protector.py, engine/db/client.py:133-140 */}
 
 ## Development
 
 ```bash
 cd tracectrl/ui
 npm install
-npm run dev   # Vite dev server at :5173
+npm run dev   # Vite dev server at :5173 (mapped to host :3001 via docker compose dev)
 ```
 
-The dashboard reads the engine URL from `VITE_ENGINE_URL` (default: `http://localhost:8000`). This is baked at build time — for Docker, it's set as a build ARG.
+The dashboard reads the engine URL from `VITE_ENGINE_URL` (default: `http://localhost:8000`). This is baked at build time — for Docker, it's set as a build ARG. {/* Sources: docker-compose.dev.yml */}

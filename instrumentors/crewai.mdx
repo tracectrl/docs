@@ -5,32 +5,44 @@ description: "Instrument CrewAI agents and crews with TraceCtrl"
 
 ## Installation
 
+`tracectrl` is on PyPI. The CrewAI instrumentor is not yet published — install it from the source tree.
+
 ```bash
-pip install -e ./sdk/tracectrl
-pip install -e ./sdk/tracectrl-instrumentation-crewai
+pip install tracectrl
+pip install ./sdk/tracectrl-instrumentation-crewai
 ```
+
+<Note>
+  PyPI publication of `tracectrl-instrumentation-crewai` is pending. Until then, install from a local checkout or via `pip install git+https://github.com/cloudsine/tracectrl.git#subdirectory=sdk/tracectrl-instrumentation-crewai`.
+</Note>
 
 ## Usage
 
 ```python
 import tracectrl
-tracectrl.configure(service_name="my-crew")
-
+from tracectrl import tag_agent
 from tracectrl.instrumentation.crewai import CrewAIInstrumentor
+
+tracectrl.configure(service_name="my-crew")
 CrewAIInstrumentor().instrument()
 
-# Your CrewAI code
 from crewai import Agent, Task, Crew
 
-researcher = Agent(role="Researcher", goal="Find data", ...)
-writer = Agent(role="Writer", goal="Write report", ...)
+researcher = Agent(role="Researcher", goal="Find data", backstory="...")
+writer = Agent(role="Writer", goal="Write report", backstory="...")
+tag_agent(researcher)
+tag_agent(writer)
+
 crew = Crew(agents=[researcher, writer], tasks=[...])
 crew.kickoff()
 ```
 
+Tag each agent in the crew so delegation edges resolve to the correct identities in TraceCtrl's topology.
+
 ## What Gets Captured
 
 Each agent in the crew generates spans with:
+
 - Agent identity (`tracectrl.agent.id`, `tracectrl.agent.name`, `tracectrl.agent.role`)
 - Tool calls with risk categories
 - Agent-to-agent delegation (crew → agent parent-child spans)
@@ -47,5 +59,11 @@ CrewAI's multi-agent delegation appears as nested spans in the trace tree, with 
 </ParamField>
 
 <ParamField path="uninstrument" type="method">
-  `uninstrument()` — Shuts down processors and unwraps the instrumentor.
+  `uninstrument()` — Shuts down the TraceCtrl processor and unwraps the OpenInference instrumentor.
 </ParamField>
+
+<ParamField path="instrumented" type="bool">
+  Whether the instrumentor is currently active.
+</ParamField>
+
+{/* Sources: sdk/tracectrl-instrumentation-crewai/src/tracectrl/instrumentation/crewai/instrumentor.py, sdk/tracectrl/src/tracectrl/__init__.py:14, PyPI 404 for tracectrl-instrumentation-crewai as of 2026-05 */}

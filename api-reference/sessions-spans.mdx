@@ -12,6 +12,12 @@ Returns the flat list of spans for a trace, ordered by timestamp. The frontend b
   The OpenTelemetry trace ID.
 </ParamField>
 
+### Query Parameters
+
+<ParamField query="extra" type="string">
+  Comma-separated list of additional trace IDs to merge in (used for OpenClaw multi-trace sessions). All spans are returned sorted by `start_ns`.
+</ParamField>
+
 ### Response
 
 Array of span detail objects:
@@ -56,3 +62,5 @@ Array of span detail objects:
 ]
 ```
 </ResponseExample>
+
+{/* Source: engine/api/routes/sessions.py:31 */}

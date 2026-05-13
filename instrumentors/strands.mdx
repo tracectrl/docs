@@ -5,30 +5,35 @@ description: "Instrument AWS Strands agents with TraceCtrl"
 
 ## Installation
 
+Both packages are published to PyPI. The Strands instrumentor is currently at **v0.2**.
+
 ```bash
-pip install -e ./sdk/tracectrl
-pip install -e ./sdk/tracectrl-instrumentation-strands
+pip install tracectrl tracectrl-instrumentation-strands>=0.2
 ```
 
 ## Usage
 
 ```python
 import tracectrl
-tracectrl.configure(service_name="my-strands-agent")
-
+from tracectrl import tag_agent
 from tracectrl.instrumentation.strands import StrandsInstrumentor
+
+tracectrl.configure(service_name="my-strands-agent")
 StrandsInstrumentor().instrument()
 
-# Your Strands code
 from strands import Agent
 
-agent = Agent(model="claude-sonnet-4-20250514")
+agent = Agent(model="anthropic.claude-sonnet-4-5-20250929-v1:0")
+tag_agent(agent)
+
 agent("Summarize this report")
 ```
 
+`tag_agent(agent)` stamps the agent's identity onto subsequent spans so the agent surfaces correctly in TraceCtrl's topology and session views.
+
 ## Implementation Note
 
-Unlike other instrumentors that wrap an OpenInference `Instrumentor` class, the Strands integration uses `StrandsAgentsToOpenInferenceProcessor` — a processor-based pattern. The `StrandsInstrumentor` wrapper provides the same `.instrument()` / `.uninstrument()` API for consistency.
+Unlike the other instrumentors (which wrap an OpenInference `Instrumentor` class), the Strands integration uses `StrandsAgentsToOpenInferenceProcessor` — a processor-based pattern. The `StrandsInstrumentor` wrapper provides the same `.instrument()` / `.uninstrument()` API for consistency.
 
 ## What Gets Captured
 
@@ -42,9 +47,15 @@ Unlike other instrumentors that wrap an OpenInference `Instrumentor` class, the 
 ### `StrandsInstrumentor()`
 
 <ParamField path="instrument" type="method">
-  `instrument(tracer_provider=None, skip_dep_check=False)` — Registers the TraceCtrl span processor and the Strands-to-OpenInference processor.
+  `instrument(tracer_provider=None, **kwargs)` — Registers the TraceCtrl span processor and the Strands-to-OpenInference processor. Only `tracer_provider` is consumed; extra kwargs are accepted but ignored.
 </ParamField>
 
 <ParamField path="uninstrument" type="method">
-  `uninstrument()` — Shuts down processors.
+  `uninstrument()` — Shuts down the TraceCtrl processor. The underlying Strands processor cannot be removed from the tracer provider.
 </ParamField>
+
+<ParamField path="instrumented" type="bool">
+  Whether the instrumentor is currently active.
+</ParamField>
+
+{/* Sources: sdk/tracectrl-instrumentation-strands/src/tracectrl/instrumentation/strands/instrumentor.py, sdk/tracectrl/src/tracectrl/__init__.py:14 */}

@@ -5,11 +5,21 @@ description: "How TraceCtrl's components fit together"
 
 ## System Overview
 
-TraceCtrl has four components: the **Python SDK** (in your agent), the **OTel Collector** (span routing), the **Intelligence Engine** (processing + API), and the **Dashboard** (visualization).
+TraceCtrl has five layers:
+
+1. **Python SDK** (in your agent) — emits OpenTelemetry spans enriched with `tracectrl.*` security attributes, plus optional in-process guardrails.
+2. **Protector Plus** (optional external HTTP firewall) — called from `tracectrl.protector`, emits guardrail evaluation spans.
+3. **OTel Collector** — receives OTLP spans and writes them to ClickHouse.
+4. **Intelligence Engine** — FastAPI service that runs the pipeline and serves the REST API.
+5. **Dashboard** — React SPA that visualizes agents, traces, alerts, guardrails, and attack paths.
+
+{/* Sources: docker-compose.yml, engine/main.py, sdk/tracectrl/src/tracectrl/*, ui/src/App.tsx */}
 
 <Frame>
-  <img src="/images/architecture.png" alt="TraceCtrl Architecture" />
+  <img src="/images/tracectrl-architecture.svg" alt="TraceCtrl architecture: a Python agent process runs the SDK (Framework Instrumentor + TraceCtrl SDK core + Guardrails), exports OTLP spans on :4317/:4318 to the OTel Collector. The Collector forwards to ClickHouse (:8123/:9000) which holds otel_traces, agent_inventory, topology edges, attack paths, guardrail registry + violations, scan results, and the protector_plus_config. The Intelligence Engine (FastAPI :8000) runs a 60-second pipeline that builds inventory + topology, ingests guardrail spans, and computes the attack graph; it serves /api/v1/* REST + SSE. The React Dashboard (:3000) renders Monitor (agents/sessions/topology), Security (alerts/guardrails/scan/risk/attacks), and Configure (settings). The Guardrails block also talks HTTP to an external Protector Plus firewall (optional); both SDK and Protector Plus violations flow to the same engine pipeline." />
 </Frame>
+
+{/* Sources: docker-compose.yml lines 1-58, engine/db/client.py:44-146, ui/src/App.tsx:145-158 */}
 
 ## Component Details
 
@@ -18,49 +28,59 @@ TraceCtrl has four components: the **Python SDK** (in your agent), the **OTel Co
 The SDK wraps [OpenInference](https://github.com/Arize-ai/openinference) framework instrumentors with a `TraceCtrlSpanProcessor` that enriches every span with security attributes. It uses OpenTelemetry as the transport — no custom protocols, no vendor lock-in.
 
 **Key modules:**
-- `tracectrl.config` — `configure()` sets up the TracerProvider with OTLP gRPC exporter
-- `tracectrl.processor` — `TraceCtrlSpanProcessor` adds agent identity, tool categories, session IDs
-- `tracectrl.inference` — Classifies tools into 8 risk categories
-- `tracectrl.session` — Session ID management via Python `contextvars`
-- `tracectrl.context` — W3C traceparent propagation for cross-service agents
+
+- `tracectrl.config` — `configure()` sets up the TracerProvider with OTLP gRPC exporter.
+- `tracectrl.processor` — `TraceCtrlSpanProcessor` adds agent identity, tool categories, session IDs, ingress markers.
+- `tracectrl.inference` — Classifies tools into risk categories.
+- `tracectrl.session` — Session ID management via Python `contextvars`.
+- `tracectrl.context` — W3C traceparent propagation for cross-service agents.
+- `tracectrl.guardrails` — In-process LLM-judge guardrails. Emits `tracectrl.guardrail.registered` (on registration) and `tracectrl.guardrail.evaluation` (per evaluation) spans. {/* Sources: sdk/tracectrl/src/tracectrl/guardrails/ */}
+- `tracectrl.protector` — TraceCtrl Guards integration with external Protector Plus HTTP firewall. Emits the same guardrail span types, tagged with `tracectrl.guardrail.provider = "protector_plus"`. {/* Sources: sdk/tracectrl/src/tracectrl/protector.py */}
+
+### Protector Plus (optional)
+
+An external HTTP firewall called from `tracectrl.protector`. Exposes seven sub-guardrails (`llm`, `keyword`, `regex`, `pii`, `vector`, `content_moderation`, `system_prompt_protection`) via `/apikey/api/protectorplus/v1/input-check` and `.../output-check`. The SDK calls it fire-and-forget; flagged sub-guardrails are emitted as `tracectrl.guardrail.evaluation` spans (`decision=fail`) for the engine to ingest. Config (endpoint URL, API key, enabled guardrails) is persisted in `protector_plus_config` and configured from the Settings page. {/* Sources: sdk/tracectrl/src/tracectrl/protector.py, engine/db/client.py:133-140 */}
 
 ### OTel Collector
 
-A standard OpenTelemetry Collector configured to receive OTLP spans on gRPC (`:4317`) and HTTP (`:4318`), then export them to ClickHouse via the `clickhouseexporter`. Configuration lives in `config/otel-collector.yaml`.
+A standard OpenTelemetry Collector configured to receive OTLP spans on gRPC (`:4317`) and HTTP (`:4318`), then export them to ClickHouse via the `clickhouseexporter`. Configuration lives in `config/otel-collector.yaml`. {/* Sources: docker-compose.yml:7-9 */}
 
 ### Intelligence Engine
 
 A FastAPI application that:
 
-1. **Runs a pipeline** every 60 seconds — reads new spans from `otel_traces`, upserts the agent inventory, builds topology edges, and advances the watermark
-2. **Serves a REST API** — topology graph, agent details, session list, span trees
-3. **Uses ClickHouse** `ReplacingMergeTree` tables with cumulative state (observation counts, call counts, confidence levels)
+1. **Runs the pipeline** every `PIPELINE_INTERVAL_SECONDS` (default 60). Each tick re-reads all spans, refreshes the agent inventory, topology, guardrail registry, guardrail violations, and the attack-graph analysis. Idempotency comes from ClickHouse `ReplacingMergeTree` rather than a watermark. {/* Sources: engine/scheduler.py:23, engine/pipeline/runner.py */}
+2. **Serves a REST API** under `/api/v1` — system, topology, sessions, agents, risk, scan, violations, guardrails. {/* Sources: engine/main.py:37-44 */}
+3. **Owns the ClickHouse schema** — `ensure_schema()` runs the CREATE/ALTER statements at startup. {/* Sources: engine/db/client.py:44-146 */}
 
 ### Dashboard
 
-A React + Vite + TypeScript SPA with:
+A React + Vite + TypeScript SPA. The sidebar groups pages into three sections (**Monitor**, **Security**, **Configure**) and the route table lives in `ui/src/App.tsx:145-158`. See the [Dashboard page](/platform/dashboard) for the per-page reference.
 
-- **Topology** — Cytoscape.js graph with dagre layout showing agents, tools, and their connections
-- **Sessions** — Trace explorer with span trees and waterfall timelines
-- **Risk Dashboard** — CISO risk view (Sprint 2)
-- **Attack Paths** — Ranked exploitation chains (Sprint 2)
-
-## Data Pipeline
+## Data Pipeline (one tick)
 
 <Steps>
-  <Step title="Fetch">
-    Read new spans from `otel_traces` since the last watermark timestamp.
+  <Step title="Fetch spans">
+    Read all spans from `otel_traces`.
   </Step>
   <Step title="Inventory">
-    Upsert agent records with cumulative observation counts and tool lists.
+    Upsert agents with cumulative observation/run counts and tool lists.
   </Step>
   <Step title="Topology">
     Upsert agent-to-agent and agent-to-tool edges with confidence scoring.
   </Step>
-  <Step title="Watermark">
-    Advance the watermark timestamp. Only advances on success — no data is ever skipped.
+  <Step title="Violations">
+    Ingest `tracectrl.guardrail.evaluation` spans with `decision in ('fail','error')` into `guardrail_violations`.
+  </Step>
+  <Step title="Guardrail registry">
+    Ingest `tracectrl.guardrail.registered` spans into `guardrail_registry`; flip health to `error` when the last hour shows error-decision violations.
+  </Step>
+  <Step title="Attack graph">
+    Evaluate TAGAAI rules, generate attack paths, score risk, write `attack_paths` / `agent_risk_scores` / `system_risk`.
   </Step>
 </Steps>
+
+{/* Sources: engine/pipeline/runner.py:14-37 */}
 
 ## ClickHouse Tables
 
@@ -70,7 +90,16 @@ A React + Vite + TypeScript SPA with:
 | `agent_inventory` | ReplacingMergeTree | Deduplicated agent records |
 | `topology_agent_edges` | ReplacingMergeTree | Agent-to-agent connections |
 | `topology_tool_edges` | ReplacingMergeTree | Agent-to-tool connections |
-| `pipeline_state` | ReplacingMergeTree | Watermark tracking |
+| `pipeline_state` | ReplacingMergeTree | Pipeline state (legacy watermark key) |
+| `attack_paths` | ReplacingMergeTree | TAGAAI-detected attack paths |
+| `agent_risk_scores` | ReplacingMergeTree | Per-agent risk |
+| `system_risk` | ReplacingMergeTree | System-wide risk summary |
+| `scan_results` / `scan_topology` / `scan_runs` | MergeTree / ReplacingMergeTree | Static OpenClaw scan output |
+| `guardrail_violations` | ReplacingMergeTree | Guardrail evaluation failures (judge-LLM + Protector Plus) |
+| `guardrail_registry` | ReplacingMergeTree | Registered guardrails (per agent) |
+| `protector_plus_config` | ReplacingMergeTree | Single-row Protector Plus config |
+
+{/* Sources: engine/db/client.py:44-146, config/schema.sql */}
 
 <Note>
   ReplacingMergeTree deduplicates rows during background merges. Always query with `FINAL` for correct results: `SELECT * FROM agent_inventory FINAL`.

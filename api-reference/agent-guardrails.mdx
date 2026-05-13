@@ -1,0 +1,17 @@
+---
+title: "Guardrails For Agent"
+api: "GET http://localhost:8000/api/v1/agents/{agent_id}/guardrails"
+description: "Guardrails registered against a specific agent"
+---
+
+Convenience endpoint that returns the same shape as [`GET /guardrails?agent_id=...`](/api-reference/guardrails-list).
+
+### Path Parameters
+
+<ParamField path="agent_id" type="string" required>The agent identifier.</ParamField>
+
+### Response
+
+Array of `GuardrailRegistration` objects — see [List Guardrails](/api-reference/guardrails-list) for field documentation.
+
+{/* Source: engine/api/routes/guardrails.py:100 */}
