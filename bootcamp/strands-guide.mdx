@@ -1,0 +1,501 @@
+---
+title: "TraceCtrl Bootcamp (Strands)"
+description: "Hands-on workshop — instrument an AWS Strands agent with TraceCtrl and go from zero traces to full security observability in 90 minutes."
+---
+
+<Info>
+  Complete the [Prerequisites](/bootcamp/prerequisites) before starting this workshop.
+</Info>
+
+<Card title="Using an AI assistant?" icon="robot" href="/agents" horizontal>
+  Paste the TraceCtrl agent instructions into Claude Code, Cursor, or Copilot to get contextual help throughout this workshop.
+</Card>
+
+---
+
+# Part 1: Introduction to TraceCtrl
+
+## What is TraceCtrl?
+
+TraceCtrl is a **security observability platform for agentic AI**. Our tagline captures the workflow:
+
+1. **See** — Visualize your agent's architecture, topology, and risk posture at a glance
+2. **Trace** — Trace every message, tool call, and model request through the full execution lifecycle
+3. **Ctrl** — Control and harden your agent's configuration with automated scanning and remediation
+
+## Components
+
+TraceCtrl has five components:
+
+| Component | What it does | Technology |
+|-----------|-------------|------------|
+| **CLI** | `tracectrl scan`, `fix`, `doctor`, `setup` | Python (pip installable) |
+| **Scanner** | Security/ops/perf/compliance checks for agent configs | Python |
+| **OTel Collector** | Receives spans from agents via OTLP | OpenTelemetry Collector |
+| **Engine** | Processes spans, builds topology, serves API | FastAPI + ClickHouse |
+| **Dashboard** | Visualizes scans, traces, topology | React + Vite + Cytoscape.js |
+
+## Architecture
+
+<Frame>
+  <div style={{ background: '#0D1117', padding: '28px 24px', borderRadius: '8px', fontFamily: 'system-ui, sans-serif' }}>
+
+    {/* Main pipeline row */}
+    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap', justifyContent: 'center' }}>
+
+      {/* Data sources — stacked */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+        <div style={{ background: '#0F1C2E', border: '1px solid #4A90D9', borderRadius: '6px', padding: '10px 16px', textAlign: 'center', minWidth: '130px' }}>
+          <div style={{ fontSize: '11px', fontWeight: '700', color: '#4A90D9', letterSpacing: '0.06em' }}>AGENT CODE</div>
+          <div style={{ fontSize: '10px', color: '#4B5563', marginTop: '3px' }}>OTLP gRPC :4317</div>
+        </div>
+        <div style={{ background: '#1C0B14', border: '1px solid #FF6B9D', borderRadius: '6px', padding: '10px 16px', textAlign: 'center', minWidth: '130px' }}>
+          <div style={{ fontSize: '11px', fontWeight: '700', color: '#FF6B9D', letterSpacing: '0.06em' }}>OPENCLAW</div>
+          <div style={{ fontSize: '10px', color: '#4B5563', marginTop: '3px' }}>OTLP HTTP :4318</div>
+        </div>
+      </div>
+
+      <div style={{ color: '#374151', fontSize: '18px', fontWeight: '300' }}>→</div>
+
+      <div style={{ background: '#091918', border: '1px solid #8BC4BF', borderRadius: '6px', padding: '10px 16px', textAlign: 'center', minWidth: '130px' }}>
+        <div style={{ fontSize: '11px', fontWeight: '700', color: '#8BC4BF', letterSpacing: '0.06em' }}>OTEL COLLECTOR</div>
+        <div style={{ fontSize: '10px', color: '#4B5563', marginTop: '3px' }}>:4317 / :4318</div>
+      </div>
+
+      <div style={{ color: '#374151', fontSize: '18px', fontWeight: '300' }}>→</div>
+
+      <div style={{ background: '#171200', border: '1px solid #FFBB00', borderRadius: '6px', padding: '10px 16px', textAlign: 'center', minWidth: '130px' }}>
+        <div style={{ fontSize: '11px', fontWeight: '700', color: '#FFBB00', letterSpacing: '0.06em' }}>CLICKHOUSE</div>
+        <div style={{ fontSize: '10px', color: '#4B5563', marginTop: '3px' }}>native :9000</div>
+      </div>
+
+      <div style={{ color: '#374151', fontSize: '18px', fontWeight: '300' }}>→</div>
+
+      <div style={{ background: '#0F0A1F', border: '1px solid #A78BFA', borderRadius: '6px', padding: '10px 16px', textAlign: 'center', minWidth: '130px' }}>
+        <div style={{ fontSize: '11px', fontWeight: '700', color: '#A78BFA', letterSpacing: '0.06em' }}>ENGINE API</div>
+        <div style={{ fontSize: '10px', color: '#4B5563', marginTop: '3px' }}>:8000</div>
+      </div>
+
+      <div style={{ color: '#374151', fontSize: '18px', fontWeight: '300' }}>→</div>
+
+      <div style={{ background: '#021A09', border: '1px solid #22C55E', borderRadius: '6px', padding: '10px 16px', textAlign: 'center', minWidth: '130px' }}>
+        <div style={{ fontSize: '11px', fontWeight: '700', color: '#22C55E', letterSpacing: '0.06em' }}>DASHBOARD</div>
+        <div style={{ fontSize: '10px', color: '#4B5563', marginTop: '3px' }}>:3000</div>
+      </div>
+    </div>
+
+    {/* CLI tools row */}
+    <div style={{ display: 'flex', justifyContent: 'center', gap: '12px', marginTop: '20px', paddingTop: '18px', borderTop: '1px solid #1F2937', flexWrap: 'wrap' }}>
+      <div style={{ background: '#1A0000', border: '1px solid #FC0404', borderRadius: '6px', padding: '8px 16px', textAlign: 'center' }}>
+        <div style={{ fontSize: '11px', fontWeight: '700', color: '#FC0404', letterSpacing: '0.06em' }}>tracectrl scan</div>
+        <div style={{ fontSize: '10px', color: '#4B5563', marginTop: '3px' }}>POST findings → Engine</div>
+      </div>
+      <div style={{ background: '#1A0000', border: '1px solid #FC0404', borderRadius: '6px', padding: '8px 16px', textAlign: 'center' }}>
+        <div style={{ fontSize: '11px', fontWeight: '700', color: '#FC0404', letterSpacing: '0.06em' }}>tracectrl fix</div>
+        <div style={{ fontSize: '10px', color: '#4B5563', marginTop: '3px' }}>auto-remediates OpenClaw config</div>
+      </div>
+    </div>
+
+  </div>
+</Frame>
+
+**How data flows:**
+
+1. Your agent (or OpenClaw) exports OpenTelemetry spans to the **OTel Collector**
+2. The Collector writes spans to **ClickHouse** (column-oriented database optimized for traces)
+3. The **Engine** runs a pipeline every 60 seconds — reads new spans, builds agent inventory, discovers topology edges
+4. The **Dashboard** queries the Engine API to render trace trees, topology graphs, and scan reports
+5. The **CLI Scanner** analyzes OpenClaw config files and uploads findings to the Engine
+
+---
+
+# Part 2: Start the TraceCtrl Stack
+
+## What You'll Have Running
+
+By the end of this section you will have:
+
+1. A running **TraceCtrl stack** (OTel Collector, ClickHouse, Engine, Dashboard)
+2. The **tracectrl CLI** installed in a Python virtual environment
+3. The Dashboard accessible at [http://localhost:3000](http://localhost:3000) — ready to receive spans from the Strands agent we'll build next
+
+## Clone and Install the CLI
+
+```bash
+git clone https://github.com/tracectrl/tracectrl.git
+cd tracectrl
+
+python3 -m venv .venv
+source .venv/bin/activate
+
+pip install tracectrl
+```
+
+## Start the Stack
+
+```bash
+tracectrl setup
+```
+
+The interactive wizard starts the four Docker containers. Alternatively:
+
+```bash
+docker compose up -d
+```
+
+<Warning>
+  **Rancher Desktop users:** `tracectrl setup` detects Rancher automatically. If you're using the containerd engine, it uses `nerdctl compose` instead of `docker compose`.
+
+  **Memory:** Ensure your container runtime has at least 6 GB of memory allocated (Settings → Resources → Memory). ClickHouse is the heaviest container at 2–4 GB RAM.
+</Warning>
+
+## Verify the Stack
+
+```bash
+tracectrl doctor
+```
+
+Expected output:
+
+```
+TraceCtrl Doctor
+
+  Services:
+    [OK]   Engine API (http://localhost:8000/api/v1/health)
+    [OK]   Dashboard UI (http://localhost:3000)
+    [OK]   OTel Collector (http://localhost:4318/v1/traces)
+
+  All checks passed.
+```
+
+Open the dashboard at [http://localhost:3000](http://localhost:3000) — currently empty. We'll populate it in the next section.
+
+<Check>
+  **Checkpoint:** `tracectrl doctor` shows all green. Dashboard loads at `localhost:3000`.
+</Check>
+
+---
+
+# Part 3: Finflow Demo (Strands Agent)
+
+## Watch First: FinFlow Demo Walkthrough
+
+Before we dig into the architecture and attack surface in text, watch the full demo end-to-end. The rest of Part 3 explains what you just saw in detail.
+
+<video
+  controls
+  className="w-full aspect-video"
+  src="/images/finflow-demo.mp4"
+/>
+
+## 3.1 Introduction
+
+**FinFlow AI** is our reference Strands application — an enterprise financial operations platform that automates the full invoice lifecycle: ingestion → policy validation → vendor verification → risk screening → payment execution → notification.
+
+It's a **multi-agent system** built on AWS Strands, designed from the start to be the TraceCtrl demo platform. The facilitator will demo FinFlow live so you can see the end-to-end flow without typing.
+
+### Architecture
+
+The diagram below mirrors how FinFlow appears in TraceCtrl's topology view — hexagonal agents, rounded tools, diamond triggers, with `delegates` / `uses` edges:
+
+<Frame>
+  <img src="/images/finflow-architecture.svg" alt="FinFlow agent topology: Upload trigger feeds the Orchestrator, which delegates to DocAI, PolicyAgent, VendorIntel, and NotificationAgent. VendorIntel delegates to RiskAgent, which delegates to PaymentAgent. Each agent uses one or more tools (parse_pdf, query_policy_kb, scrape_vendor_site, send_email, sanctions_mcp, stripe_charge)." />
+</Frame>
+
+**6 agents, 3 ingress points, 2 external MCPs/APIs, 3 data stores.** Five of the agents are LLM-driven Strands agents; `PaymentAgent` is a deterministic Python function (you don't want an LLM deciding whether to actually move money).
+
+### What We'll Demo
+
+First we'll run FinFlow on a **normal, predictable workflow** — clean invoices flowing through the pipeline exactly as designed: Orchestrator → DocAI → PolicyAgent → VendorIntel → RiskAgent → PaymentAgent → NotificationAgent. Everything works.
+
+Then we'll upload an invoice that looks identical to the human eye but carries a **subtle injection in invisible text** the PDF parser still extracts — and watch the agents derail. TraceCtrl traces both runs end-to-end, so the difference between "working as intended" and "compromised" is visible in the same dashboard.
+
+### Pick an Example to Run
+
+The facilitator demos FinFlow. For your own hands-on portion, pick one of the pre-built examples in the demo repo — each is pre-instrumented and runs on a free Google AI Studio key.
+
+```bash
+git clone https://github.com/tracectrl/tracectrl-demo.git
+cd tracectrl-demo
+ls
+```
+
+| Example | What it does | Topology shape |
+|---------|--------------|----------------|
+| `finflow/` | Multi-agent invoice processing (facilitator demo) | 6 agents · DocAI/Policy/VendorIntel/Risk/Payment/Notification · MCP · Postgres · web scraper |
+| `finance-agent/` | Single-agent finance automation | 1 agent · calculator + data tools |
+| `email-agent-attack/` | Email-based agent with attack scenarios | 1 agent · email tools · attack payloads |
+
+Pick one. The rest of Part 3 uses `<example>` as a placeholder for the directory you chose.
+
+### Install Strands
+
+From inside your activated virtual environment:
+
+```bash
+pip install -r <example>/requirements.txt
+pip install tracectrl-instrumentation-strands
+```
+
+### Set Your API Key
+
+```bash
+export GOOGLE_API_KEY="your_key_here"
+```
+
+<Info>
+  **No API key?** Get a free one at [aistudio.google.com](https://aistudio.google.com) — no credit card required. Or the facilitator will provide one during the workshop.
+</Info>
+
+## 3.2 How to Trace
+
+Every example is already instrumented. Open its entry file (e.g. `<example>/main.py`) and you'll see the same three lines at the top:
+
+```python
+import tracectrl
+from tracectrl.instrumentation.strands import StrandsInstrumentor
+
+tracectrl.configure(service_name="<example>")
+StrandsInstrumentor().instrument()
+```
+
+That's the full instrumentation surface. These lines must appear **before** any Strands imports — they wrap the SDK's agent, LLM, and tool calls with OpenTelemetry span creation. Everything below them is normal Strands code.
+
+### Run the Example
+
+```bash
+cd <example>
+python main.py
+```
+
+The agent runs normally — but every LLM call and tool invocation is now captured as an OpenTelemetry span and sent to the local OTel Collector.
+
+<Tip>
+  For FinFlow, the facilitator runs the **happy path** (`python demo/happy_path_runner.py`) to push 5 clean invoices through the system — this builds the baseline topology you'll attack against in Part 4.
+</Tip>
+
+### View the Traces
+
+Open [http://localhost:3000/sessions](http://localhost:3000/sessions).
+
+You'll see a new trace row with your example's service name. Click it to expand the **trace tree**:
+
+- **Agent span** — the top-level execution
+- **LLM spans** — each Gemini call with prompt, response, and token counts
+- **Tool spans** — each tool invocation with arguments and results
+
+Click any span to see its **detail panel**: timing, security attributes, input/output content.
+
+### View the Topology
+
+Open [http://localhost:3000/topology](http://localhost:3000/topology).
+
+The topology graph is built automatically from the trace data — no configuration needed:
+
+- **Agent node** → connected to **LLM provider** (Gemini)
+- **Agent node** → connected to **tool nodes** for every tool the agent invoked
+
+### What TraceCtrl Captures
+
+| Span Type | Key Attributes |
+|-----------|---------------|
+| **Agent** | `agent.name`, `openinference.span.kind=AGENT` |
+| **LLM** | `llm.model_name`, `input.value`, `output.value`, token counts |
+| **Tool** | `tool.name`, `tool.description`, input/output, `tracectrl.tool.category` |
+
+TraceCtrl's `TraceCtrlSpanProcessor` automatically enriches every span with tool risk category, agent identity, session correlation, and input source classification — no dashboard configuration needed.
+
+<Check>
+  **Checkpoint:** Sessions page shows a trace with agent → LLM → tool spans. Topology page shows your example connected to its tools and model.
+</Check>
+
+## 3.3 Other Examples & Their Topologies
+
+Your example is one shape. Run a second example from the catalog and compare — the topology graph accumulates a new agent node with its own tool fan-out, so you can see how different agent designs project onto the same risk model.
+
+TraceCtrl classifies every tool into one of 8 risk categories:
+
+| Category | Examples |
+|----------|---------|
+| **network** | http_request, web scraping |
+| **code_execution** | python_repl, bash, exec |
+| **filesystem** | file read/write, directory ops |
+| **data_store** | database queries, key-value ops |
+| **web_browsing** | browser automation, URL fetch |
+| **communication** | email, Slack, messaging |
+| **system** | process management, OS ops |
+| **other** | uncategorized |
+
+Pick a second example from the demo repo and run it:
+
+```bash
+cd ../email-agent-attack    # or finance-agent
+python main.py
+```
+
+Refresh the Topology page. The new agent appears alongside your first one with its own tool fan-out — `email-agent-attack` shows **communication** nodes (Gmail send/read), FinFlow's facilitator demo shows **filesystem** (PDF read), **web_browsing** (VendorIntel scraper), **data_store** (Postgres txn history), and **network** (Sanctions MCP).
+
+The interesting comparison isn't just node count — it's where the **risk concentrates**. FinFlow's RiskAgent sits on an edge that touches an external MCP and feeds directly into PaymentAgent; that's the shape TraceCtrl flags as an attack-graph candidate.
+
+<Tip>
+  **Custom tools** in the examples (defined with the `@tool` decorator) are captured the same way — TraceCtrl reads the tool name and description and classifies it automatically.
+</Tip>
+
+## 3.4 Configure Guardrails
+
+> **TODO:** Walk through configuring runtime guardrails in TraceCtrl for the Finflow agent — what guardrail types are available, how to wire them in, and how violations surface in the dashboard. Show 1–2 example guardrail configs for the other tool topologies above (e.g. blocking `code_execution` outputs, restricting `network` egress).
+
+## 3.5 Moving On
+
+Finflow shows the trace + topology + tool-risk foundations. Next, we layer in **GenAI Posture Protection** — turning runtime telemetry into policy enforcement against a real LLM provider boundary.
+
+---
+
+# Part 4: GenAI Posture Protection Demo
+
+## 4.1 Configure API-Based Guardrails in TraceCtrl
+
+> **TODO:** Show how to configure API-based guardrails in the TraceCtrl dashboard — endpoint, auth, policy bundle, and how the guardrail decision is recorded as a span attribute.
+
+## 4.2 Configure GenAI PP for Finflow in the Dashboard
+
+> **TODO:** Walk through the dashboard flow for attaching a GenAI Posture Protection policy to the `finflow` agent — selecting policies, scoping to specific tools/models, and enabling enforce vs. monitor mode.
+
+## 4.3 Run the Agent and Catch Violations
+
+> **TODO:** Re-run Finflow with a prompt designed to trigger a policy violation (e.g. prompt injection, PII exfiltration, banned topic). Show the violation in the Sessions trace, the policy decision span, and the dashboard alert view.
+
+<Check>
+  **Checkpoint:** A GenAI PP policy is attached to `finflow`. A deliberate violation appears in the dashboard with full trace context.
+</Check>
+
+---
+
+# Part 5: OpenClaw Demo (Time Permitting)
+
+## 5.1 OpenClaw Scan Using TraceCtrl
+
+> **TODO:** Brief OpenClaw intro (link to full [OpenClaw bootcamp](/bootcamp/guide)). Run `tracectrl scan` against an OpenClaw workspace and show the findings + risk topology in the dashboard.
+
+## 5.2 Demonstration of Hack
+
+> **TODO:** Demonstrate exploitation of one of the CRITICAL findings (e.g. exposed gateway + dangerous tools + plaintext credentials → credential exfiltration).
+
+## 5.3 Hardening
+
+> **TODO:** Run `tracectrl fix --auto`, apply manual fixes for SSRF / sandbox / session isolation, and rescan. Show the dashboard going from red to green.
+
+---
+
+# Bring Your Own Agent
+
+If you came with an existing Strands agent, instrument it with the same three lines:
+
+```python
+import tracectrl
+from tracectrl.instrumentation.strands import StrandsInstrumentor
+
+tracectrl.configure(service_name="your-agent-name")
+StrandsInstrumentor().instrument()
+```
+
+These lines must appear **before** any Strands imports. Everything else stays unchanged.
+
+## Other Model Providers
+
+<Tabs>
+  <Tab title="Anthropic (Claude)">
+    ```bash
+    export ANTHROPIC_API_KEY="sk-ant-..."
+    ```
+
+    ```python
+    from strands import Agent
+    from strands.models.anthropic import AnthropicModel
+
+    model = AnthropicModel(model_id="claude-sonnet-4-20250514")
+    agent = Agent(model=model, tools=[...])
+    ```
+  </Tab>
+  <Tab title="Amazon Bedrock">
+    ```bash
+    export AWS_PROFILE=default
+    # or set AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY / AWS_DEFAULT_REGION
+    ```
+
+    ```python
+    from strands import Agent
+
+    # Bedrock is the default provider — no model import needed
+    agent = Agent(
+        model="us.anthropic.claude-sonnet-4-20250514-v1:0",
+        tools=[...],
+    )
+    ```
+  </Tab>
+  <Tab title="Google Gemini">
+    ```bash
+    export GOOGLE_API_KEY="AIza..."
+    ```
+
+    ```python
+    from strands import Agent
+    from strands.models.gemini import GeminiModel
+
+    model = GeminiModel(model_id="gemma-4-31b-it")
+    agent = Agent(model=model, tools=[...])
+    ```
+  </Tab>
+</Tabs>
+
+---
+
+# Summary
+
+## What You Built
+
+| Component | Status |
+|-----------|--------|
+| TraceCtrl stack (Engine + Dashboard + Collector + ClickHouse) | Running via Docker |
+| Finflow Strands agent | Instrumented and running |
+| Runtime traces (agent → LLM → tool spans) | Visible in Sessions |
+| Agent topology graph | Auto-built from traces |
+| Tool risk categorization | Applied automatically by SDK |
+| GenAI Posture Protection policies | Attached and catching violations |
+
+## CLI Reference
+
+```bash
+tracectrl setup                # Interactive wizard — start the stack
+tracectrl doctor               # Verify all services are healthy
+tracectrl scan [path]          # Run security scan on an agent config
+tracectrl fix --auto           # Auto-remediate findings
+tracectrl version              # Print version
+```
+
+## Useful Links
+
+<CardGroup cols={2}>
+  <Card title="TraceCtrl GitHub" icon="github" href="https://github.com/tracectrl/tracectrl">
+    Source code and issues.
+  </Card>
+  <Card title="Strands Agents" icon="aws" href="https://strandsagents.com">
+    AWS Strands SDK documentation.
+  </Card>
+  <Card title="Strands Tools" icon="wrench" href="https://github.com/strands-agents/tools">
+    Full list of built-in tools.
+  </Card>
+  <Card title="OpenTelemetry" icon="signal" href="https://opentelemetry.io">
+    The observability standard TraceCtrl is built on.
+  </Card>
+</CardGroup>
+
+## Cleanup
+
+```bash
+# Stop containers and remove all data
+docker compose down -v
+
+# Or keep data, just stop containers
+docker compose down
+```
