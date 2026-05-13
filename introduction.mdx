@@ -33,12 +33,16 @@ TraceCtrl uses OpenTelemetry as the transport layer. You add 3 lines to your age
 ```python
 import tracectrl
 tracectrl.configure(service_name="my-agent")
+tracectrl.tag_agent(name="my-agent", role="primary")
 
-from tracectrl.instrumentation.langchain import LangChainInstrumentor
-LangChainInstrumentor().instrument()
+from tracectrl.instrumentation.strands import StrandsInstrumentor
+StrandsInstrumentor().instrument()
 
 # Your existing agent code — no changes needed
 ```
+{/* Strands instrumentor verified on PyPI 2026-05; LangChain/CrewAI/Google ADK
+     instrumentor packages exist in-repo but are not yet published. */}
+
 
 Spans flow through the OTel Collector into ClickHouse, where the TraceCtrl Engine processes them into an agent inventory, topology graph, and risk scores — all queryable via API and visible in the dashboard.
 
@@ -48,12 +52,18 @@ Spans flow through the OTel Collector into ClickHouse, where the TraceCtrl Engin
 |-----------|---------|---------|-----------|--------|
 | Agno | `tracectrl-instrumentation-agno` | [![PyPI](https://img.shields.io/pypi/v/tracectrl-instrumentation-agno?color=blue&label=)](https://pypi.org/project/tracectrl-instrumentation-agno/) | [![Downloads](https://img.shields.io/pypi/dm/tracectrl-instrumentation-agno?color=blue&label=)](https://pypistats.org/packages/tracectrl-instrumentation-agno) | Stable |
 | AWS Strands | `tracectrl-instrumentation-strands` | [![PyPI](https://img.shields.io/pypi/v/tracectrl-instrumentation-strands?color=blue&label=)](https://pypi.org/project/tracectrl-instrumentation-strands/) | [![Downloads](https://img.shields.io/pypi/dm/tracectrl-instrumentation-strands?color=blue&label=)](https://pypistats.org/packages/tracectrl-instrumentation-strands) | Stable |
+| CrewAI | `tracectrl-instrumentation-crewai` | — | — | Source only |
+| LangChain | `tracectrl-instrumentation-langchain` | — | — | Source only |
+| Google ADK | `tracectrl-instrumentation-google-adk` | — | — | Source only |
 | OpenClaw | Native OTEL — no SDK needed | — | — | Stable |
 
+{/* PyPI status verified 2026-05: agno, strands, scanner, tracectrl = 200;
+     crewai, langchain, google-adk = 404 (in-repo only). */}
+
 <Note>
-  **Stable** = tested end-to-end in production.
+  **Stable** = published to PyPI and tested end-to-end.
+  **Source only** = the instrumentor package exists in the TraceCtrl repo and can be installed from source (`pip install -e ./sdk/tracectrl-instrumentation-<framework>`), but is not yet on PyPI.
   OpenClaw uses its native OTEL export — no TraceCtrl SDK needed. See the [OpenClaw instrumentor guide](/instrumentors/openclaw).
-  LangChain, CrewAI, and Google ADK instrumentors are in development — coming soon.
 </Note>
 
 ## Next Steps

@@ -24,9 +24,12 @@ description: "Get TraceCtrl running end-to-end in 5 minutes"
       <Tab title="CLI Wizard (Recommended)">
         The CLI wizard walks you through configuration, writes your `.env` file, and launches the stack.
         ```bash
-        pip install tracectrl[setup]
+        pip install tracectrl
         tracectrl setup
         ```
+        {/* tracectrl pyproject has no extras_require — install plain `tracectrl`.
+             Source: sdk/tracectrl/pyproject.toml (verified 2026-05). */}
+
         Or from source:
         ```bash
         pip install textual rich
@@ -89,12 +92,17 @@ description: "Get TraceCtrl running end-to-end in 5 minutes"
 <Steps>
   <Step title="Install the SDK">
     ```bash
-    pip install -e ./sdk/tracectrl
-    pip install -e ./sdk/tracectrl-instrumentation-langchain  # or your framework
+    pip install tracectrl tracectrl-instrumentation-strands
     ```
+    For frameworks not yet on PyPI (LangChain, CrewAI, Google ADK), install from the repo:
+    ```bash
+    pip install -e ./sdk/tracectrl-instrumentation-langchain
+    ```
+    {/* PyPI verified 2026-05: tracectrl, tracectrl-instrumentation-strands,
+         tracectrl-instrumentation-agno are published. Others source-only. */}
   </Step>
 
-  <Step title="Add 3 lines before your agent code">
+  <Step title="Add a few lines before your agent code">
     ```python
     import tracectrl
 
@@ -102,24 +110,33 @@ description: "Get TraceCtrl running end-to-end in 5 minutes"
         service_name="my-agent-service",
         endpoint="http://localhost:4317",
     )
+    tracectrl.tag_agent(name="my-agent", role="primary")
 
-    from tracectrl.instrumentation.langchain import LangChainInstrumentor
-    LangChainInstrumentor().instrument()
+    from tracectrl.instrumentation.strands import StrandsInstrumentor
+    StrandsInstrumentor().instrument()
     ```
 
     <Warning>
       These lines must come **before** any framework imports to ensure all modules are patched.
     </Warning>
+
+    <Note>
+      **Tag your agent.** `tracectrl.tag_agent(...)` attaches identity attributes
+      (`tracectrl.agent.id`, `tracectrl.agent.name`, `tracectrl.agent.role`) to
+      every span emitted from this process. Without it, the engine cannot group
+      spans into the agent inventory or score per-agent risk. For multi-agent
+      processes, use `tag_agents({...})` and call `tag_agent` inside each agent's
+      execution scope.
+    </Note>
   </Step>
 
   <Step title="Run your agent normally">
     ```python
-    from langchain_openai import ChatOpenAI
-    from langchain.agents import create_openai_tools_agent, AgentExecutor
+    from strands import Agent
+    from strands.models import BedrockModel
 
-    llm = ChatOpenAI(model="gpt-4o")
-    # ... define tools, prompt, agent
-    agent_executor.invoke({"input": "Summarize my latest emails"})
+    agent = Agent(model=BedrockModel(model_id="anthropic.claude-3-5-sonnet"))
+    agent("Summarize my latest emails")
     ```
 
     Every LLM call, tool invocation, and chain execution is now captured as OpenTelemetry spans enriched with TraceCtrl security attributes.
