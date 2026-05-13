@@ -16,50 +16,10 @@ TraceCtrl has five layers:
 {/* Sources: docker-compose.yml, engine/main.py, sdk/tracectrl/src/tracectrl/*, ui/src/App.tsx */}
 
 <Frame>
-  <img src="/images/architecture.png" alt="TraceCtrl Architecture" />
+  <img src="/images/tracectrl-architecture.svg" alt="TraceCtrl architecture: a Python agent process runs the SDK (Framework Instrumentor + TraceCtrl SDK core + Guardrails), exports OTLP spans on :4317/:4318 to the OTel Collector. The Collector forwards to ClickHouse (:8123/:9000) which holds otel_traces, agent_inventory, topology edges, attack paths, guardrail registry + violations, scan results, and the protector_plus_config. The Intelligence Engine (FastAPI :8000) runs a 60-second pipeline that builds inventory + topology, ingests guardrail spans, and computes the attack graph; it serves /api/v1/* REST + SSE. The React Dashboard (:3000) renders Monitor (agents/sessions/topology), Security (alerts/guardrails/scan/risk/attacks), and Configure (settings). The Guardrails block also talks HTTP to an external Protector Plus firewall (optional); both SDK and Protector Plus violations flow to the same engine pipeline." />
 </Frame>
 
-```
-                       ┌──────────────────────────┐
-                       │  Your Agent (Python)     │
-                       │  ┌────────────────────┐  │
-                       │  │ TraceCtrl SDK      │  │
-                       │  │  - processor       │  │
-                       │  │  - guardrails (LLM │──┼──► OTLP gRPC :4317
-                       │  │     judges)        │  │
-                       │  │  - protector ──────┼──┼──► Protector Plus (HTTP)
-                       │  └────────────────────┘  │       │
-                       └──────────────────────────┘       │ guardrail spans
-                                    │                     │ (fire-and-forget)
-                                    ▼                     ▼
-                         ┌──────────────────────────────────┐
-                         │ OTel Collector (:4317 / :4318)   │
-                         └──────────────────────────────────┘
-                                    │ clickhouseexporter
-                                    ▼
-                         ┌──────────────────────────────────┐
-                         │ ClickHouse (:8123 / :9000)       │
-                         │  otel_traces, agent_inventory,   │
-                         │  topology_*, attack_paths,       │
-                         │  guardrail_registry,             │
-                         │  guardrail_violations, ...       │
-                         └──────────────────────────────────┘
-                                    │
-                                    ▼
-                         ┌──────────────────────────────────┐
-                         │ Intelligence Engine (:8000)      │
-                         │  pipeline (APScheduler, 60s)     │
-                         │  REST API + SSE                  │
-                         └──────────────────────────────────┘
-                                    │
-                                    ▼
-                         ┌──────────────────────────────────┐
-                         │ Dashboard (:3000)                │
-                         │  Monitor / Security / Configure  │
-                         └──────────────────────────────────┘
-```
-
-{/* Sources: docker-compose.yml lines 1-58, engine/db/client.py:44-146 */}
+{/* Sources: docker-compose.yml lines 1-58, engine/db/client.py:44-146, ui/src/App.tsx:145-158 */}
 
 ## Component Details
 
