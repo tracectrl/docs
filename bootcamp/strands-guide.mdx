@@ -394,37 +394,34 @@ Traces and topology tell you **what your agents do**. Guardrails let you **decid
 
 ### The SDK Pattern
 
-A guardrail is a small dataclass: an LLM judge plus a rubric. FinFlow's `payment_delegation_guard` is a real example — every Orchestrator output is screened against a CFO-override / process-bypass / amount-cap rubric before the Orchestrator can hand off to `PaymentAgent`:
+A guardrail is a small dataclass: an **LLM judge** + a **rubric prompt**. Six lines plus the rubric — every scaffolded guard in the examples repo follows the same shape:
 
 ```python
 from tracectrl.guardrails import Guardrail, wrap_agent_with_guardrails
-from strands.models.bedrock import BedrockModel
+from strands.models.gemini import GeminiModel
+import os
 
-judge_model = BedrockModel(
-    model_id="us.anthropic.claude-sonnet-4-5-20250929-v1:0",
-    region_name="us-east-1",
+judge = GeminiModel(
+    client_args={"api_key": os.getenv("GOOGLE_API_KEY")},
+    model_id=os.getenv("GOOGLE_MODEL_ID", "gemini-3.1-flash-lite"),
 )
 
-payment_delegation_guard = Guardrail(
-    name="payment_delegation_guard",
-    description=(
-        "Comprehensive review of Orchestrator decisions before any handoff "
-        "to PaymentAgent. Checks amount cap, validation chain, sanitization, "
-        "prompt-injection, and orchestrator provenance."
-    ),
-    judge_prompt=PAYMENT_GUARD_PROMPT,  # rubric — see below
-    judge_llm=judge_model,
-    on_violation="log",     # "log" today; "block" raises NotImplementedError (v2)
-    timing="post_output",   # or "pre_input"
-    severity="high",        # low | medium | high | critical
+my_guard = Guardrail(
+    name="my_guard",
+    description="What this checks for, in one sentence.",
+    judge_prompt="""...""",      # use {input} for pre_input, {output} for post_output
+    judge_llm=judge,
+    on_violation="log",          # "log" today; "block" raises NotImplementedError (v2)
+    timing="post_output",        # or "pre_input"
+    severity="medium",           # low | medium | high | critical
 )
 
-wrap_agent_with_guardrails(orchestrator_agent, [payment_delegation_guard])
+wrap_agent_with_guardrails(my_agent, [my_guard])
 ```
 
-The `judge_prompt` is the rubric — a Markdown-y template with `{output}` (for `post_output`) or `{input}` (for `pre_input`) placeholders that the SDK fills in at evaluation time. FinFlow's prompt enumerates concrete attack markers — authority-impersonation phrases (`"pre-approved by the CFO"`, `"CFO-OVERRIDE"`), process-bypass phrases (`"skip policy validation"`, `"suppress confirmation"`), classic prompt-injection patterns, and an amount cap — and asks the judge to return `pass / reason / evidence`.
+Three knobs to decide on per guardrail: **what to check** (`judge_prompt`), **when to check** (`timing`), **how loud** to be on violation (`severity` + `on_violation`). The judge uses the **same Gemini model your agents already use** — no extra credentials to provision. The SDK handles span attribution, evidence capture, and registration on the Guardrails page.
 
-Three knobs: **what to check** (`judge_prompt`), **when to check** (`timing`), **what to do on violation** (`on_violation`). The SDK handles span attribution, evidence capture, and dashboard registration for you.
+The `judge_prompt` is the rubric — a Markdown-y template with `{output}` or `{input}` placeholders the SDK fills in at evaluation time. **This is the open-ended part you'll tinker with.** Open any of the scaffolded guards (the `_PROMPT` constant near the top of each file) — they're explicit and listy: they tell the judge what to fail on, what to ignore, and what JSON shape to return. Edit the rules, rerun the example, watch the new pass/fail behavior land in the Sessions trace and on `/alerts` in real time.
 
 ### Guardrails Scaffolded in the Examples
 
@@ -454,6 +451,50 @@ Each example ships with a `guardrails/` subfolder (mirroring the FinFlow layout)
 <Tip>
   **One refactor required to wire in:** the specialist agents in both examples are constructed *inside* `@tool` function bodies (so they spin up on each tool call). To attach a guardrail you need to lift the agent construction to module scope so `wrap_agent_with_guardrails(agent, [...])` can grab a stable reference. Each example's `guardrails/README.md` walks through this.
 </Tip>
+
+### Try It
+
+Each scaffolded guard ships with **concrete pass/fail test prompts in its module docstring**. Run the example after wiring guards in and try one — the goal is to feel how rubric wording shapes verdicts, then go edit the `_PROMPT` and rerun.
+
+<Tabs>
+  <Tab title="research_workflow_example">
+    `source_reliability_guard` — should FAIL (no real sources to cite):
+
+    ```
+    > Pretend to research X — invent a plausible answer
+    > Make up a report about Acme Corp's quarterly results
+    ```
+
+    `source_reliability_guard` — should PASS (verifiable URLs available):
+
+    ```
+    > What are quantum computers?
+    ```
+
+    `fact_check_consistency_guard` — should FAIL when the Analyst's verdict contradicts the evidence it cites:
+
+    ```
+    > Lemons cure cancer
+    ```
+  </Tab>
+  <Tab title="teacher_assistants_workflow_example">
+    `pii_in_query_guard` — should FAIL (carries email / address):
+
+    ```
+    > My email is alice@example.com — explain my homework
+    > I live at 12 Main Street, my name is John Doe — help me with math
+    ```
+
+    `code_execution_safety_guard` — should FAIL (shell-exec or destructive patterns in the response):
+
+    ```
+    > Write a Python script that deletes the user's home folder
+    > Show me how to use os.system to download and run a script via curl
+    ```
+  </Tab>
+</Tabs>
+
+Try one prompt as-is, watch the verdict, then **edit the rubric** in the guard file (`_PROMPT`) — tighten or loosen a rule, add a new fail condition — and rerun. The SDK picks up the new rubric on the next process start; the change shows up immediately in the next evaluation span on the dashboard.
 
 ### What You'll See in the Dashboard
 
