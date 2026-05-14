@@ -426,29 +426,33 @@ The `judge_prompt` is the rubric — a Markdown-y template with `{output}` (for 
 
 Three knobs: **what to check** (`judge_prompt`), **when to check** (`timing`), **what to do on violation** (`on_violation`). The SDK handles span attribution, evidence capture, and dashboard registration for you.
 
-### Guardrail Ideas for the Examples
+### Guardrails Scaffolded in the Examples
 
-These are concrete starting points — each takes ~20 lines of Python and slots into the existing example with one `wrap_agent_with_guardrails(...)` call.
+Each example ships with a `guardrails/` subfolder (mirroring the FinFlow layout) containing **two ready-to-read scaffolds** — full rubric prompt, `Guardrail()` config, and concrete pass/fail test inputs in the docstring. They start unwired so the example still runs as-is; participants opt in by uncommenting a wire-in block at the bottom of the entry file.
 
 <Tabs>
   <Tab title="research_workflow_example">
-    **`source_reliability_guard`** — post-output on `Writer`. Fail if the report cites no URLs or cites obvious low-quality sources (forums, social media) without caveat.
+    **`source_reliability_guard`** — `post_output` on `Writer`. Fails when the report cites zero URLs, only forum/social citations, or fabricated-looking sources. Severity: medium.
 
-    **`fact_check_consistency_guard`** — post-output on `Analyst`. Fail if the verdict (true/false/uncertain) contradicts the evidence the Researcher gathered.
+    **`fact_check_consistency_guard`** — `post_output` on `Analyst`. Fails when the Analyst's verdict ("true" / "false" / accuracy rating) contradicts the evidence it itself cites — i.e. claims "verified" with no supporting points, or "true" while citing a debunking source. Severity: high.
 
-    **`http_egress_guard`** — pre-input wrapper on the `http_request` tool. Block (log-mode for now) requests to localhost / private IP ranges / non-allowlisted domains. Catches SSRF-shaped behaviour from prompt-injected research targets.
+    Files live in `research_workflow_example/guardrails/`. The commented wire-in block at the bottom of `agents_workflow.py` shows exactly which lines to uncomment.
   </Tab>
   <Tab title="teacher_assistants_workflow_example">
-    **`pii_in_query_guard`** — pre-input on `TeachAssist`. Fail if a student's question contains what looks like PII (email, phone, full name + address) — common when kids paste from somewhere else.
+    **`pii_in_query_guard`** — `pre_input` on `TeachAssist`. Fails when the student's query carries an email, phone number, national ID (NRIC / SSN / NI), or full-name + home-address pairing — common when kids paste from somewhere else. Severity: medium.
 
-    **`code_execution_safety_guard`** — post-output on `GeneralAssist` (which handles CS and coding questions). Fail if the generated code contains `os.system`, `subprocess`, `eval`, `exec`, or `rm -rf` patterns. The agent is supposed to teach, not run shell.
+    **`code_execution_safety_guard`** — `post_output` on `GeneralAssist` (the CS / coding specialist). Fails when the response contains `os.system`, `subprocess(shell=True)`, `eval`, `exec`, `rm -rf`, curl-piped-to-bash, or other shell-execution / destructive / remote-payload patterns. The agent's job is to teach, not hand out shells. Severity: high.
 
-    **`scope_guard`** — post-output on every specialist. Fail if `MathWizard` answers an English question, etc. Catches mis-routing and prompt-injection routing hijacks.
+    Files live in `teacher_assistants_workflow_example/guardrails/`. The commented wire-in block at the bottom of `teachers_assistant.py` shows exactly which lines to uncomment.
   </Tab>
 </Tabs>
 
+<Note>
+  **The judge uses the same Gemini model your agents are on.** Each scaffolded guardrail passes a `GeminiModel(...)` as `judge_llm` — no extra credentials to provision. The Protector Plus path in Part 4 covers external LLM-firewall checks (PII, content moderation, prompt injection) where you DON'T want to roll your own judge.
+</Note>
+
 <Tip>
-  **Layout that scales:** put each guardrail in its own file under a `guardrails/` subfolder (mirroring FinFlow), import them from a single `guardrails/__init__.py`, and wire them in via `wrap_agent_with_guardrails(...)` at the bottom of your entry script. Toggle with a single env var so you can run the example with or without guards.
+  **One refactor required to wire in:** the specialist agents in both examples are constructed *inside* `@tool` function bodies (so they spin up on each tool call). To attach a guardrail you need to lift the agent construction to module scope so `wrap_agent_with_guardrails(agent, [...])` can grab a stable reference. Each example's `guardrails/README.md` walks through this.
 </Tip>
 
 ### What You'll See in the Dashboard
