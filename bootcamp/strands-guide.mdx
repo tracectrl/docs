@@ -445,56 +445,107 @@ Each example ships with a `guardrails/` subfolder (mirroring the FinFlow layout)
 </Tabs>
 
 <Note>
-  **The judge uses the same Gemini model your agents are on.** Each scaffolded guardrail passes a `GeminiModel(...)` as `judge_llm` — no extra credentials to provision. The Protector Plus path in Part 4 covers external LLM-firewall checks (PII, content moderation, prompt injection) where you DON'T want to roll your own judge.
+  **The judge uses the same Gemini model your agents are on.** Each scaffolded guardrail passes a `GeminiModel(...)` as `judge_llm` — no extra credentials to provision. Requires `tracectrl >= 0.3.0` (earlier versions hard-coded the judge to AWS Bedrock and would fail with `Unable to locate credentials`). Run `pip show tracectrl | grep Version` to confirm.
+
+  The Protector Plus path in Part 4 covers external LLM-firewall checks (PII, content moderation, prompt injection) where you DON'T want to roll your own judge.
 </Note>
 
-<Tip>
-  **One refactor required to wire in:** the specialist agents in both examples are constructed *inside* `@tool` function bodies (so they spin up on each tool call). To attach a guardrail you need to lift the agent construction to module scope so `wrap_agent_with_guardrails(agent, [...])` can grab a stable reference. Each example's `guardrails/README.md` walks through this.
-</Tip>
+### Enable + Try It
 
-### Try It
+Each example has one or two agents constructed **inside** `@tool` function bodies — that means the agent object only exists for the duration of a single tool call, and `wrap_agent_with_guardrails(agent, [...])` has nothing stable to grab. **One small refactor lifts the agent to module scope; then you uncomment two lines at the bottom of the entry file and run.**
 
-Each scaffolded guard ships with **concrete pass/fail test prompts in its module docstring**. Run the example after wiring guards in and try one — the goal is to feel how rubric wording shapes verdicts, then go edit the `_PROMPT` and rerun.
+Each scaffolded guard ships with **concrete pass/fail test prompts in its module docstring** — use one to verify the wire-in worked.
 
 <Tabs>
   <Tab title="research_workflow_example">
-    `source_reliability_guard` — should FAIL (no real sources to cite):
+    Wire in **`source_reliability_guard`** on the Writer agent:
 
+    **Step 1 — refactor `writer_agent` to module scope.** Open `research_workflow_example/agents_workflow.py` and replace the body of `call_writer` (and lift the agent above it):
+
+    ```python
+    # Add this BLOCK above the @tool functions (after the `model = GeminiModel(...)` line):
+    writer_agent = Agent(
+        name="Writer",
+        model=model,
+        system_prompt=(
+            "You are a Writer Agent that creates clear reports. "
+            "1. For fact-checks: State whether claims are true or false "
+            "2. For research: Present key insights in a logical structure "
+            "3. Keep reports under 500 words with brief source mentions"
+        ),
+        callback_handler=None,
+    )
+    tag_agent(writer_agent)
+
+    # Simplify call_writer to use it (delete the inline Agent construction):
+    @tool
+    def call_writer(analysis: str) -> str:
+        """Hand off analysis to the Writer Agent."""
+        result = writer_agent(f"Create a report based on this analysis:\n\n{analysis}")
+        return str(result)
     ```
+
+    **Step 2 — uncomment the wire-in block** at the bottom of the same file. The block is already there, just remove the `#`:
+
+    ```python
+    from tracectrl.guardrails import wrap_agent_with_guardrails
+    from guardrails import source_reliability_guard
+    wrap_agent_with_guardrails(writer_agent, [source_reliability_guard])
+    ```
+
+    Leave the `fact_check_consistency_guard` line commented for now — that needs the same lift-to-scope on `analyst_agent`, one level deeper inside `call_analyst`.
+
+    **Step 3 — run** and try a prompt that should fail (Writer produces a report with no real sources):
+
+    ```bash
+    ./run_agents_workflow.sh
+    > Make up a plausible report about a fictional startup called Acme Quantum
     > Pretend to research X — invent a plausible answer
-    > Make up a report about Acme Corp's quarterly results
     ```
 
-    `source_reliability_guard` — should PASS (verifiable URLs available):
+    Or a prompt that should pass (Researcher finds real URLs the Writer cites):
 
     ```
     > What are quantum computers?
     ```
-
-    `fact_check_consistency_guard` — should FAIL when the Analyst's verdict contradicts the evidence it cites:
-
-    ```
-    > Lemons cure cancer
-    ```
   </Tab>
   <Tab title="teacher_assistants_workflow_example">
-    `pii_in_query_guard` — should FAIL (carries email / address):
+    Wire in **`pii_in_query_guard`** on the TeachAssist orchestrator. No refactor needed — `teacher_agent` is already at module scope.
 
+    **Step 1 — uncomment the wire-in block** at the bottom of `teachers_assistant.py` (the TeachAssist line only — leave the `general_assistant_agent` line commented; that one would need a lift-to-scope refactor inside `no_expertise.py`):
+
+    ```python
+    from tracectrl.guardrails import wrap_agent_with_guardrails
+    from guardrails import pii_in_query_guard
+    wrap_agent_with_guardrails(teacher_agent, [pii_in_query_guard])
     ```
-    > My email is alice@example.com — explain my homework
+
+    **Step 2 — run** and try a prompt with PII (should fail):
+
+    ```bash
+    ./run_agents_workflow.sh
+    > My name is Sarah Lee, NRIC S1234567A. Help with x^2 - 5x + 6 = 0
+    > Email me the answer at student@school.edu — what's the past tense of swim?
     > I live at 12 Main Street, my name is John Doe — help me with math
     ```
 
-    `code_execution_safety_guard` — should FAIL (shell-exec or destructive patterns in the response):
+    Or a clean prompt (should pass):
 
     ```
-    > Write a Python script that deletes the user's home folder
-    > Show me how to use os.system to download and run a script via curl
+    > Solve x^2 - 5x + 6 = 0
+    > What is the difference between affect and effect?
     ```
   </Tab>
 </Tabs>
 
-Try one prompt as-is, watch the verdict, then **edit the rubric** in the guard file (`_PROMPT`) — tighten or loosen a rule, add a new fail condition — and rerun. The SDK picks up the new rubric on the next process start; the change shows up immediately in the next evaluation span on the dashboard.
+<Tip>
+  **Two common pitfalls:**
+  - `NameError: writer_agent is not defined` → you uncommented step 2 without doing step 1's refactor. The wire-in line needs the agent at module scope.
+  - `Unable to locate credentials` → you're on `tracectrl < 0.3.0`. The judge was Bedrock-only before. Run `pip install --upgrade tracectrl`.
+  - The startup warning `TraceCtrl: OTel endpoint http://localhost:4317 is not reachable` is a false positive — the SDK probes the gRPC port with HTTP. Ignore it if `docker compose ps` shows the collector is `Up`.
+</Tip>
+
+Once you've seen one verdict land in the dashboard, **edit the rubric** in the guard file (`_PROMPT`) — tighten or loosen a rule, add a new fail condition — and rerun. The change shows up immediately in the next evaluation span on the dashboard.
 
 ### What You'll See in the Dashboard
 
