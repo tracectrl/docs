@@ -315,13 +315,32 @@ Three things to notice:
 
 ### View the Traces
 
-Open [http://localhost:3000/sessions](http://localhost:3000/sessions). You'll see a new session row tagged with your `TRACECTRL_SERVICE_NAME` (`agents-workflow` for research, `teachers-assistant` for teacher). Click the row to expand the trace tree. Three span kinds:
+Open [http://localhost:3000/sessions](http://localhost:3000/sessions). You'll see a row per prompt tagged with your `TRACECTRL_SERVICE_NAME` (`agents-workflow` for research, `teachers-assistant` for teacher). Click the row to expand the trace tree. Five span kinds you'll see:
 
-- **Agent span** — emitted per `tag_agent(...)` agent; nests when one agent calls another via a `@tool` hand-off
-- **LLM span** — one per Gemini call, with prompt, response, and token counts
-- **Tool span** — one per `@tool` invocation, with arguments and results
+- **`invoke_agent <Name>`** — top-level span for each `tag_agent`-named agent. Nests when one agent calls another via a `@tool` hand-off.
+- **`execute_event_loop_cycle`** — one per turn of the Strands event loop (LLM call + any tool calls it produced). A multi-turn agent run has several of these stacked under its `invoke_agent`.
+- **`chat`** — the actual LLM call inside an event loop cycle (prompt, response, token counts).
+- **`execute_tool <tool_name>`** — every `@tool` invocation with arguments and result.
+- Tool spans that wrap *agent hand-offs* (`execute_tool call_analyst`, `execute_tool math_assistant`) contain a nested `invoke_agent` span — that nesting is what gives the topology its `delegates` edges.
 
-Click any span to see its detail panel (timing, attributes, input/output values).
+Click any span to see its detail panel: timing, attributes, raw input/output values.
+
+<Tabs>
+  <Tab title="research_workflow_example">
+    <Frame>
+      <img src="/images/sessions-research.png" alt="TraceCtrl Sessions view for research_workflow_example: 1 trace, 24 spans, 21.08s duration, status OK. Trace tree expanded under invoke_agent Researcher showing multiple execute_event_loop_cycle spans, each containing a chat (LLM) span and one or more execute_tool http_request spans. Toward the bottom, an execute_tool call_analyst span contains a nested invoke_agent Analyst, which in turn contains another execute_event_loop_cycle with chat and execute_tool call_writer wrapping an invoke_agent Writer span." />
+    </Frame>
+
+    A single "Lemon cures cancer" fact-check prompt produces **24 spans across 21 seconds**. The Researcher runs through four event-loop cycles (each one a `chat` + one or two `http_request` tool calls to fetch sources), then hands off via `execute_tool call_analyst` → `invoke_agent Analyst` → `execute_tool call_writer` → `invoke_agent Writer`. The full chain is visible as one continuous trace tree.
+  </Tab>
+  <Tab title="teacher_assistants_workflow_example">
+    <Frame>
+      <img src="/images/sessions-teacher.png" alt="TraceCtrl Sessions view for teacher_assistants_workflow_example: 3 traces total, showing two invoke_agent TeachAssist sessions (4.49s and 3.76s) and one invoke_agent Researcher session leftover from the research example. The middle TeachAssist trace is expanded — invoke_agent TeachAssist contains an execute_event_loop_cycle with a chat span and an execute_tool math_assistant span; nested inside that tool span is invoke_agent MathWizard with its own execute_event_loop_cycle, chat span, and a follow-up execute_event_loop_cycle with another chat span." />
+    </Frame>
+
+    A "What is 1 + 1?" prompt produces **9 spans across ~4 seconds**. TeachAssist's first event-loop cycle picks the route (`chat`), calls `execute_tool math_assistant` which contains `invoke_agent MathWizard`, MathWizard runs its own event-loop cycles, and the result bubbles back up. Each subsequent prompt creates a separate trace — three different prompts give you three trace rows.
+  </Tab>
+</Tabs>
 
 ### What TraceCtrl Captures
 
@@ -334,7 +353,7 @@ Click any span to see its detail panel (timing, attributes, input/output values)
 The `TraceCtrlSpanProcessor` (inside the SDK) enriches every span with tool risk category, agent identity, session correlation, and input-source classification automatically — no dashboard wiring needed.
 
 <Check>
-  **Checkpoint:** Sessions page shows a trace with nested agent → LLM → tool spans for your example. Trace tree depth matches the agent chain (3 for research, 2 for teacher).
+  **Checkpoint:** Sessions page shows a trace with `invoke_agent` at the top, nested `execute_event_loop_cycle` / `chat` / `execute_tool` spans, and at least one `invoke_agent <Sub>` nested under an `execute_tool` (the agent hand-off). Span count is in the high single digits for the teacher example, mid-twenties for a multi-source research query.
 </Check>
 
 ## 3.3 Compare the Topologies
