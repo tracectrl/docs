@@ -268,6 +268,68 @@ Expected: a JSON response containing `candidates[0].content.parts[0].text`. If y
   **Never commit your API key to git.** Always use environment variables — never paste the key directly into code files.
 </Warning>
 
+### Fallback: Vertex AI Service Account (facilitator-provided)
+
+<Note>
+  **Only use this if AI Studio doesn't work for you** — corporate network blocks, region restrictions, billing-tier issues. The default path above is AI Studio.
+
+  Ask the facilitator for `bootcamp-key.json` — a service-account credentials file for the Vertex AI project we provision for the workshop.
+</Note>
+
+**Step 1 — Save the key and point at it**
+
+Drop `bootcamp-key.json` into your `~/Downloads/` (or anywhere stable), then export the credentials path:
+
+<Tabs>
+  <Tab title="macOS / Linux / WSL2">
+    ```bash
+    export GOOGLE_APPLICATION_CREDENTIALS="$HOME/Downloads/bootcamp-key.json"
+    ```
+  </Tab>
+  <Tab title="Windows (Command Prompt)">
+    ```bat
+    set GOOGLE_APPLICATION_CREDENTIALS=C:\Users\%USERNAME%\Downloads\bootcamp-key.json
+    ```
+  </Tab>
+  <Tab title="Windows (PowerShell)">
+    ```powershell
+    $env:GOOGLE_APPLICATION_CREDENTIALS="C:\Users\$env:USERNAME\Downloads\bootcamp-key.json"
+    ```
+  </Tab>
+</Tabs>
+
+**Step 2 — Install the Vertex AI SDK**
+
+```bash
+pip install google-cloud-aiplatform
+```
+
+**Step 3 — Verify it works**
+
+```python
+import vertexai
+from vertexai.generative_models import GenerativeModel
+
+PROJECT_ID = "internal-rt-dev-aut0"
+LOCATION   = "global"
+
+vertexai.init(project=PROJECT_ID, location=LOCATION)
+
+model = GenerativeModel("gemini-3.1-flash-lite-preview")
+response = model.generate_content("Say hello!")
+print(response.text)
+```
+
+Expected: a short response from the model. If you hit a `PermissionDenied` or `403`, double-check the `GOOGLE_APPLICATION_CREDENTIALS` path is set in the same shell and points at a readable file.
+
+<Warning>
+  **This is a different code path than the example repo's default.** The bootcamp examples (`research_workflow_example`, `teacher_assistants_workflow_example`) wire Gemini through the AI Studio SDK (`google-genai`) via `GOOGLE_API_KEY`. If you fall back to Vertex, ask the facilitator for the Vertex-flavoured model construction snippet to drop into the example before running — it's a 3-line swap.
+</Warning>
+
+<Warning>
+  **Don't commit `bootcamp-key.json` to git.** It's a real GCP service-account credential. Treat it like a password.
+</Warning>
+
 ---
 
 ## Pull Docker Images Ahead of Time
