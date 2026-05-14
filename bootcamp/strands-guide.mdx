@@ -38,74 +38,17 @@ TraceCtrl has five components:
 ## Architecture
 
 <Frame>
-  <div style={{ background: '#0D1117', padding: '28px 24px', borderRadius: '8px', fontFamily: 'system-ui, sans-serif' }}>
-
-    {/* Main pipeline row */}
-    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap', justifyContent: 'center' }}>
-
-      {/* Data sources — stacked */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-        <div style={{ background: '#0F1C2E', border: '1px solid #4A90D9', borderRadius: '6px', padding: '10px 16px', textAlign: 'center', minWidth: '130px' }}>
-          <div style={{ fontSize: '11px', fontWeight: '700', color: '#4A90D9', letterSpacing: '0.06em' }}>AGENT CODE</div>
-          <div style={{ fontSize: '10px', color: '#4B5563', marginTop: '3px' }}>OTLP gRPC :4317</div>
-        </div>
-        <div style={{ background: '#1C0B14', border: '1px solid #FF6B9D', borderRadius: '6px', padding: '10px 16px', textAlign: 'center', minWidth: '130px' }}>
-          <div style={{ fontSize: '11px', fontWeight: '700', color: '#FF6B9D', letterSpacing: '0.06em' }}>OPENCLAW</div>
-          <div style={{ fontSize: '10px', color: '#4B5563', marginTop: '3px' }}>OTLP HTTP :4318</div>
-        </div>
-      </div>
-
-      <div style={{ color: '#374151', fontSize: '18px', fontWeight: '300' }}>→</div>
-
-      <div style={{ background: '#091918', border: '1px solid #8BC4BF', borderRadius: '6px', padding: '10px 16px', textAlign: 'center', minWidth: '130px' }}>
-        <div style={{ fontSize: '11px', fontWeight: '700', color: '#8BC4BF', letterSpacing: '0.06em' }}>OTEL COLLECTOR</div>
-        <div style={{ fontSize: '10px', color: '#4B5563', marginTop: '3px' }}>:4317 / :4318</div>
-      </div>
-
-      <div style={{ color: '#374151', fontSize: '18px', fontWeight: '300' }}>→</div>
-
-      <div style={{ background: '#171200', border: '1px solid #FFBB00', borderRadius: '6px', padding: '10px 16px', textAlign: 'center', minWidth: '130px' }}>
-        <div style={{ fontSize: '11px', fontWeight: '700', color: '#FFBB00', letterSpacing: '0.06em' }}>CLICKHOUSE</div>
-        <div style={{ fontSize: '10px', color: '#4B5563', marginTop: '3px' }}>native :9000</div>
-      </div>
-
-      <div style={{ color: '#374151', fontSize: '18px', fontWeight: '300' }}>→</div>
-
-      <div style={{ background: '#0F0A1F', border: '1px solid #A78BFA', borderRadius: '6px', padding: '10px 16px', textAlign: 'center', minWidth: '130px' }}>
-        <div style={{ fontSize: '11px', fontWeight: '700', color: '#A78BFA', letterSpacing: '0.06em' }}>ENGINE API</div>
-        <div style={{ fontSize: '10px', color: '#4B5563', marginTop: '3px' }}>:8000</div>
-      </div>
-
-      <div style={{ color: '#374151', fontSize: '18px', fontWeight: '300' }}>→</div>
-
-      <div style={{ background: '#021A09', border: '1px solid #22C55E', borderRadius: '6px', padding: '10px 16px', textAlign: 'center', minWidth: '130px' }}>
-        <div style={{ fontSize: '11px', fontWeight: '700', color: '#22C55E', letterSpacing: '0.06em' }}>DASHBOARD</div>
-        <div style={{ fontSize: '10px', color: '#4B5563', marginTop: '3px' }}>:3000</div>
-      </div>
-    </div>
-
-    {/* CLI tools row */}
-    <div style={{ display: 'flex', justifyContent: 'center', gap: '12px', marginTop: '20px', paddingTop: '18px', borderTop: '1px solid #1F2937', flexWrap: 'wrap' }}>
-      <div style={{ background: '#1A0000', border: '1px solid #FC0404', borderRadius: '6px', padding: '8px 16px', textAlign: 'center' }}>
-        <div style={{ fontSize: '11px', fontWeight: '700', color: '#FC0404', letterSpacing: '0.06em' }}>tracectrl scan</div>
-        <div style={{ fontSize: '10px', color: '#4B5563', marginTop: '3px' }}>POST findings → Engine</div>
-      </div>
-      <div style={{ background: '#1A0000', border: '1px solid #FC0404', borderRadius: '6px', padding: '8px 16px', textAlign: 'center' }}>
-        <div style={{ fontSize: '11px', fontWeight: '700', color: '#FC0404', letterSpacing: '0.06em' }}>tracectrl fix</div>
-        <div style={{ fontSize: '10px', color: '#4B5563', marginTop: '3px' }}>auto-remediates OpenClaw config</div>
-      </div>
-    </div>
-
-  </div>
+  <img src="/images/tracectrl-architecture.svg" alt="TraceCtrl architecture: a Python agent process runs the SDK (Framework Instrumentor + TraceCtrl SDK core + Guardrails), exports OTLP spans on :4317/:4318 to the OTel Collector. The Collector forwards to ClickHouse (:8123/:9000) which holds otel_traces, agent_inventory, topology edges, attack paths, guardrail registry + violations, scan results, and the protector_plus_config. The Intelligence Engine (FastAPI :8000) runs a 60-second pipeline that builds inventory + topology, ingests guardrail spans, and computes the attack graph; it serves /api/v1/* REST + SSE. The React Dashboard (:3000) renders Monitor (agents/sessions/topology), Security (alerts/guardrails/scan/risk/attacks), and Configure (settings). The Guardrails block also talks HTTP to an external Protector Plus firewall (optional); both SDK and Protector Plus violations flow to the same engine pipeline." />
 </Frame>
 
 **How data flows:**
 
-1. Your agent (or OpenClaw) exports OpenTelemetry spans to the **OTel Collector**
-2. The Collector writes spans to **ClickHouse** (column-oriented database optimized for traces)
-3. The **Engine** runs a pipeline every 60 seconds — reads new spans, builds agent inventory, discovers topology edges
-4. The **Dashboard** queries the Engine API to render trace trees, topology graphs, and scan reports
-5. The **CLI Scanner** analyzes OpenClaw config files and uploads findings to the Engine
+1. Your agent (or OpenClaw) exports OpenTelemetry spans to the **OTel Collector**.
+2. The Collector writes spans to **ClickHouse** (column-oriented database optimized for traces).
+3. The **Engine** runs a pipeline every 60 seconds — reads spans, builds agent inventory, discovers topology edges, ingests guardrail registrations and violations, and computes the attack graph.
+4. The **Dashboard** queries the Engine API to render Sessions, Topology, Alerts, Guardrails, Scan reports, Risk, and Attack Paths.
+5. **Guardrails** ride the same pipe: in-SDK LLM judges (`tracectrl.guardrails`) and the external **Protector Plus** firewall (`tracectrl.protector`) both emit guardrail-evaluation spans that the engine surfaces as alerts.
+6. The **CLI Scanner** (`tracectrl scan`, `tracectrl fix`) is a separate path that statically analyses OpenClaw configs and uploads findings to the Engine.
 
 ---
 
@@ -176,9 +119,9 @@ Open the dashboard at [http://localhost:3000](http://localhost:3000) — current
 
 ---
 
-# Part 3: Finflow Demo (Strands Agent)
+# Part 3: FinFlow Demo (Strands Agent)
 
-## Watch First: FinFlow Demo Walkthrough
+## 3.1 Introduction
 
 Before we dig into the architecture and attack surface in text, watch the full demo end-to-end. The rest of Part 3 explains what you just saw in detail.
 
@@ -188,7 +131,7 @@ Before we dig into the architecture and attack surface in text, watch the full d
   src="/images/finflow-demo.mp4"
 />
 
-## 3.1 Introduction
+### What FinFlow Is
 
 **FinFlow AI** is our reference Strands application — an enterprise financial operations platform that automates the full invoice lifecycle: ingestion → policy validation → vendor verification → risk screening → payment execution → notification.
 
@@ -224,26 +167,7 @@ cd tracectrl-bootcamp-examples
 | `research_workflow_example/` | 3-agent chain: **Researcher → Analyst → Writer** | Web research / fact-checking. Researcher uses `http_request`, hands off via tool-call to Analyst, which hands off to Writer. |
 | `teacher_assistants_workflow_example/` | Star: 1 orchestrator → 4 specialists | **TeachAssist** routes student queries to **MathWizard**, **EnglishMaster**, **LanguageAssistant**, or **GeneralAssist**. |
 
-Here's what each topology looks like in the TraceCtrl dashboard after running:
-
-<Tabs>
-  <Tab title="research_workflow_example">
-    <Frame>
-      <img src="/images/topology.png" alt="TraceCtrl Topology view for research_workflow_example: three hexagonal agent nodes — Researcher, Analyst, Writer — connected by 'delegates' edges in a linear chain. Researcher has a 'uses' edge down to the http_request tool (green square node)." />
-    </Frame>
-
-    A linear 3-agent chain. `Researcher` is the entry point — it fetches web sources via `http_request`, then hands off to `Analyst`, which hands off to `Writer`. Each hand-off is a `@tool` function call, which is why TraceCtrl draws `delegates` edges between the agents rather than treating them as a flat list.
-  </Tab>
-  <Tab title="teacher_assistants_workflow_example">
-    <Frame>
-      <img src="/images/topology4.png" alt="TraceCtrl Topology view for teacher_assistants_workflow_example: TeachAssist at center connected by 'delegates' edges to four specialist agents — MathWizard, EnglishMaster, LanguageAssistant, and GeneralAssist — forming a star shape." />
-    </Frame>
-
-    A star topology. `TeachAssist` sits at the center and delegates to one specialist per query. The star builds up progressively — each new routing decision adds one more edge. Run four different queries (math, general, English, language) and you'll see all four arms appear one by one in the dashboard.
-  </Tab>
-</Tabs>
-
-Each example folder is self-contained — its own README, `.env`, runner script, and Python files.
+Each example folder is self-contained — its own README, `.env`, runner script, and Python files. You'll see the rendered topology for each in [3.3 Compare the Topologies](#3-3-compare-the-topologies) after you run them.
 
 ### Setup
 
@@ -325,7 +249,7 @@ tag_agent(researcher_agent)
 Three things to notice:
 
 1. **`StrandsInstrumentor().instrument()`** patches the Strands SDK so every agent invocation, LLM call, and tool call emits an OpenTelemetry span. No per-agent boilerplate.
-2. **`tag_agent(...)`** attaches the agent's name and role to its spans, and — crucially — is what makes the **topology edges appear**. In both examples, agents hand off to each other by calling a `@tool` function that creates a new `Agent` and calls `tag_agent()` on it. When TraceCtrl sees that pattern, it knows the outer agent delegated to the inner one and draws a `delegates` edge between them in the topology graph. Without `tag_agent(...)`, agents show up as unnamed generic nodes with no relationships — you'd see a flat list instead of a Researcher → Analyst → Writer chain or a TeachAssist → MathWizard star.
+2. **`tag_agent(...)`** stamps the agent's name and role onto every span the agent emits (via the auto-installed `SystemPromptStamper`). The parent-child span tree exists either way — Strands wires that up — but without `tag_agent` the agent nodes in the topology graph come through with generic / inferred names instead of `Researcher` / `Analyst` / `TeachAssist`, which makes the topology much harder to read. In both examples, agents hand off to each other by calling a `@tool` function that creates a new `Agent` and calls `tag_agent()` on it — that's what produces the named `delegates` edges (`Researcher → Analyst → Writer`, `TeachAssist → MathWizard`, etc.).
 3. **OTLP gRPC on `:4317`.** This is the OpenTelemetry Collector that ships with the TraceCtrl stack from Part 2. The Engine reads from it, the Dashboard reads from the Engine.
 
 ### Run the Example
@@ -399,15 +323,11 @@ Open [http://localhost:3000/sessions](http://localhost:3000/sessions). You'll se
 
 Click any span to see its detail panel (timing, attributes, input/output values).
 
-<Info>
-  Per-example Sessions screenshots will be added here once both examples have been run end-to-end — the exact trace tree layout depends on the prompt and which specialists / sources the agent picks.
-</Info>
-
 ### What TraceCtrl Captures
 
 | Span | Key attributes |
 |------|----------------|
-| **Agent** | `agent.name`, `agent.role`, `openinference.span.kind=AGENT` |
+| **Agent** | `tracectrl.agent.name`, `tracectrl.agent.role`, `openinference.span.kind=AGENT` (OpenInference's unprefixed `agent.name` is also present on the span; TraceCtrl-prefixed copies are what the topology graph reads) |
 | **LLM** | `llm.model_name`, `input.value`, `output.value`, token counts |
 | **Tool** | `tool.name`, `tool.description`, input/output, `tracectrl.tool.category` |
 
@@ -421,10 +341,22 @@ The `TraceCtrlSpanProcessor` (inside the SDK) enriches every span with tool risk
 
 Open [http://localhost:3000/topology](http://localhost:3000/topology). Each example produces a distinct shape:
 
-| Example | Shape | Risk surface |
-|---------|-------|--------------|
-| `research_workflow_example` | Linear 3-agent chain | `Researcher` → external **network** (`http_request`) is the only external edge; downstream agents are read-only over context. |
-| `teacher_assistants_workflow_example` | Star: 1 orchestrator → 4 specialists | `EnglishMaster` pulls in `file_read` / `file_write` / `editor`; `LanguageAssistant` uses `http_request`. `GeneralAssist` handles anything that doesn't fit a specialist . |
+<Tabs>
+  <Tab title="research_workflow_example">
+    <Frame>
+      <img src="/images/topology.png" alt="TraceCtrl Topology view for research_workflow_example: three hexagonal agent nodes — Researcher, Analyst, Writer — connected by 'delegates' edges in a linear chain. Researcher has a 'uses' edge down to the http_request tool (green square node)." />
+    </Frame>
+
+    A linear 3-agent chain. `Researcher` is the entry point — it fetches web sources via `http_request`, then hands off to `Analyst`, which hands off to `Writer`. Each hand-off is a `@tool` function call, which is why TraceCtrl draws `delegates` edges between the agents rather than treating them as a flat list. Only external edge: `Researcher` → `http_request` (the `external_api` risk category).
+  </Tab>
+  <Tab title="teacher_assistants_workflow_example">
+    <Frame>
+      <img src="/images/topology4.png" alt="TraceCtrl Topology view for teacher_assistants_workflow_example: TeachAssist at center connected by 'delegates' edges to four specialist agents — MathWizard, EnglishMaster, LanguageAssistant, and GeneralAssist — forming a star shape." />
+    </Frame>
+
+    A star topology. `TeachAssist` delegates to one specialist per query — the star builds up progressively as different subjects route to different specialists. `EnglishMaster` pulls in `file_read` / `file_write` / `editor`; `LanguageAssistant` uses `http_request`; `GeneralAssist` handles anything that doesn't fit a specialist.
+  </Tab>
+</Tabs>
 
 If you ran both, the topology accumulates — you'll see two disconnected sub-graphs in the same dashboard, which is exactly what you'd see in production when multiple agentic services share one TraceCtrl deployment.
 
@@ -440,35 +372,35 @@ Traces and topology tell you **what your agents do**. Guardrails let you **decid
 
 ### The SDK Pattern
 
-The pattern from FinFlow's `payment_delegation_guard` (in `tracectrl-demo/finflow/guardrails/payment_delegation.py`):
+A guardrail is a small dataclass: an LLM judge plus a rubric. FinFlow's `payment_delegation_guard` is a real example — every Orchestrator output is screened against a CFO-override / process-bypass / amount-cap rubric before the Orchestrator can hand off to `PaymentAgent`:
 
 ```python
 from tracectrl.guardrails import Guardrail, wrap_agent_with_guardrails
-from strands.models.gemini import GeminiModel
+from strands.models.bedrock import BedrockModel
 
-# An LLM judge that scores the wrapped agent's output against a rubric.
-judge_model = GeminiModel(
-    client_args={"api_key": os.getenv("GOOGLE_API_KEY")},
-    model_id="gemini-3.1-flash-lite",
+judge_model = BedrockModel(
+    model_id="us.anthropic.claude-sonnet-4-5-20250929-v1:0",
+    region_name="us-east-1",
 )
 
-my_guard = Guardrail(
-    name="my_guard",
-    description="One-line summary of what this guardrail enforces.",
-    judge_prompt="""\
-You are reviewing an agent output. Fail (pass=false) if:
-  - <rule 1>
-  - <rule 2>
-Otherwise pass=true. Output: {output}
-""",
+payment_delegation_guard = Guardrail(
+    name="payment_delegation_guard",
+    description=(
+        "Comprehensive review of Orchestrator decisions before any handoff "
+        "to PaymentAgent. Checks amount cap, validation chain, sanitization, "
+        "prompt-injection, and orchestrator provenance."
+    ),
+    judge_prompt=PAYMENT_GUARD_PROMPT,  # rubric — see below
     judge_llm=judge_model,
-    timing="post_output",      # or "pre_input"
-    on_violation="log",        # log | block (block is v2)
-    severity="high",           # low | medium | high | critical
+    on_violation="log",     # "log" today; "block" raises NotImplementedError (v2)
+    timing="post_output",   # or "pre_input"
+    severity="high",        # low | medium | high | critical
 )
 
-wrap_agent_with_guardrails(my_agent, [my_guard])
+wrap_agent_with_guardrails(orchestrator_agent, [payment_delegation_guard])
 ```
+
+The `judge_prompt` is the rubric — a Markdown-y template with `{output}` (for `post_output`) or `{input}` (for `pre_input`) placeholders that the SDK fills in at evaluation time. FinFlow's prompt enumerates concrete attack markers — authority-impersonation phrases (`"pre-approved by the CFO"`, `"CFO-OVERRIDE"`), process-bypass phrases (`"skip policy validation"`, `"suppress confirmation"`), classic prompt-injection patterns, and an amount cap — and asks the judge to return `pass / reason / evidence`.
 
 Three knobs: **what to check** (`judge_prompt`), **when to check** (`timing`), **what to do on violation** (`on_violation`). The SDK handles span attribution, evidence capture, and dashboard registration for you.
 
@@ -493,9 +425,9 @@ These are concrete starting points — each takes ~20 lines of Python and slots 
   </Tab>
 </Tabs>
 
-<Info>
-  **Should these live in the examples repo?** Yes — recommendation is a `guardrails/` subfolder in each example mirroring FinFlow's layout (`guardrails/__init__.py`, one file per guard), wired in via `wrap_agent_with_guardrails(...)` in the entry script. That keeps the examples runnable end-to-end with guardrails on or off via a single env var. Flagging this so the examples repo gets that structure before the workshop.
-</Info>
+<Tip>
+  **Layout that scales:** put each guardrail in its own file under a `guardrails/` subfolder (mirroring FinFlow), import them from a single `guardrails/__init__.py`, and wire them in via `wrap_agent_with_guardrails(...)` at the bottom of your entry script. Toggle with a single env var so you can run the example with or without guards.
+</Tip>
 
 ### What You'll See in the Dashboard
 
@@ -607,8 +539,8 @@ That's the difference Protector Plus + TraceCtrl gets you over Protector Plus al
 # Get your absolute workspace path (run as your normal user, not sudo)
 openclaw configure        # first line of output prints the path
 
-# Then scan
-tracectrl scan /Users/you/.openclaw/
+# Then scan — use the absolute path printed by openclaw configure
+tracectrl scan <absolute-path-from-openclaw-configure>
 ```
 
 <Warning>
@@ -705,7 +637,7 @@ These lines must appear **before** any Strands imports. Everything else stays un
     from strands import Agent
     from strands.models.gemini import GeminiModel
 
-    model = GeminiModel(model_id="gemma-4-31b-it")
+    model = GeminiModel(model_id="gemini-3.1-flash-lite")
     agent = Agent(model=model, tools=[...])
     ```
   </Tab>
@@ -720,11 +652,11 @@ These lines must appear **before** any Strands imports. Everything else stays un
 | Component | Status |
 |-----------|--------|
 | TraceCtrl stack (Engine + Dashboard + Collector + ClickHouse) | Running via Docker |
-| Finflow Strands agent | Instrumented and running |
+| FinFlow Strands agent | Instrumented and running |
 | Runtime traces (agent → LLM → tool spans) | Visible in Sessions |
 | Agent topology graph | Auto-built from traces |
 | Tool risk categorization | Applied automatically by SDK |
-| GenAI Posture Protection policies | Attached and catching violations |
+| GenAI Protector Plus guardrails | Attached and catching violations |
 
 ## CLI Reference
 
