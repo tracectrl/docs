@@ -67,12 +67,28 @@ By the end of this section you will have:
 ```bash
 git clone https://github.com/tracectrl/tracectrl.git
 cd tracectrl
-
-python3 -m venv .venv
-source .venv/bin/activate
-
-pip install tracectrl
 ```
+
+<Tabs>
+  <Tab title="pip (Python 3.10+)">
+    ```bash
+    python3 -m venv .venv
+    source .venv/bin/activate
+
+    pip install tracectrl
+    ```
+  </Tab>
+  <Tab title="uv">
+    ```bash
+    uv venv
+    source .venv/bin/activate
+
+    uv pip install tracectrl
+    ```
+
+    Requires [uv](https://docs.astral.sh/uv/getting-started/installation/) on `PATH`.
+  </Tab>
+</Tabs>
 
 ## Start the Stack
 
@@ -174,7 +190,7 @@ Each example folder is self-contained — its own README, `.env`, runner script,
 
 ### Setup
 
-Both examples are self-contained: `.env` for credentials, `run_agents_workflow.sh` to create the venv and install everything from PyPI ([`tracectrl`](https://pypi.org/project/tracectrl/), [`tracectrl-instrumentation-strands`](https://pypi.org/project/tracectrl-instrumentation-strands/), `strands-agents[gemini]`, `strands-agents-tools`).
+Both examples are self-contained: `.env` for credentials, plus two interchangeable runners — `run_agents_workflow.sh` (pip) and `run_agents_workflow_uv.sh` ([uv](https://docs.astral.sh/uv/getting-started/installation/)). Either one creates the venv and installs everything from PyPI ([`tracectrl`](https://pypi.org/project/tracectrl/), [`tracectrl-instrumentation-strands`](https://pypi.org/project/tracectrl-instrumentation-strands/), `strands-agents[gemini]`, `strands-agents-tools`). Pick whichever you have — uv is ~10× faster on the cold install.
 
 <Tabs>
   <Tab title="research_workflow_example">
@@ -263,11 +279,24 @@ Three things to notice:
 
 <Tabs>
   <Tab title="research_workflow_example">
-    ```bash
-    bash run_agents_workflow.sh
-    ```
+    <Tabs>
+      <Tab title="pip (Python 3.10+)">
+        ```bash
+        bash run_agents_workflow.sh
+        ```
 
-    The first run creates a venv and installs `strands-agents[gemini]`, `strands-agents-tools`, `tracectrl`, and `tracectrl-instrumentation-strands` from PyPI — this takes about a minute. **Subsequent runs reuse the venv and skip the install**, so they start in a few seconds.
+        Uses `venv/` for its virtual environment.
+      </Tab>
+      <Tab title="uv">
+        ```bash
+        bash run_agents_workflow_uv.sh
+        ```
+
+        Uses `.venv/` for its virtual environment. Requires [uv](https://docs.astral.sh/uv/getting-started/installation/) on `PATH`.
+      </Tab>
+    </Tabs>
+
+    The first run creates the venv and installs `strands-agents[gemini]`, `strands-agents-tools`, `tracectrl`, and `tracectrl-instrumentation-strands` from PyPI — about a minute on pip, a few seconds on uv. **Subsequent runs reuse the venv and skip the install.**
 
     At the prompt, try these in order — start with the short one first to confirm everything is wired up before running a longer query:
 
@@ -280,11 +309,24 @@ Three things to notice:
     Each prompt creates a new trace in TraceCtrl. Type `exit` to quit.
   </Tab>
   <Tab title="teacher_assistants_workflow_example">
-    ```bash
-    bash run_agents_workflow.sh
-    ```
+    <Tabs>
+      <Tab title="pip (Python 3.10+)">
+        ```bash
+        bash run_agents_workflow.sh
+        ```
 
-    The first run creates a venv and installs dependencies — about a minute. **Subsequent runs reuse the venv and skip the install.**
+        Uses `venv/` for its virtual environment.
+      </Tab>
+      <Tab title="uv">
+        ```bash
+        bash run_agents_workflow_uv.sh
+        ```
+
+        Uses `.venv/` for its virtual environment. Requires [uv](https://docs.astral.sh/uv/getting-started/installation/) on `PATH`.
+      </Tab>
+    </Tabs>
+
+    The first run creates the venv and installs dependencies — about a minute on pip, a few seconds on uv. **Subsequent runs reuse the venv and skip the install.**
 
     Run these four prompts **in order**, then open [http://localhost:3000/topology](http://localhost:3000/topology) after each one to watch the star topology build up edge by edge:
 
@@ -425,7 +467,7 @@ The `judge_prompt` is the rubric — a Markdown-y template with `{output}` or `{
 
 ### Guardrails Scaffolded in the Examples
 
-Each example ships with a `guardrails/` subfolder (mirroring the FinFlow layout) containing **two ready-to-read scaffolds** — full rubric prompt, `Guardrail()` config, and concrete pass/fail test inputs in the docstring. They start unwired so the example still runs as-is; participants opt in by uncommenting a wire-in block at the bottom of the entry file.
+Each example ships with a `guardrails/` subfolder (mirroring the FinFlow layout) containing **two ready-to-read scaffolds** — full rubric prompt, `Guardrail()` config, and concrete pass/fail test inputs in the docstring. They start unwired so the example still runs as-is; **every guardrail-target agent is already at module scope, so enabling a guard is a single uncomment** at the bottom of the entry file.
 
 <Tabs>
   <Tab title="research_workflow_example">
@@ -452,53 +494,26 @@ Each example ships with a `guardrails/` subfolder (mirroring the FinFlow layout)
 
 ### Enable + Try It
 
-Each example has one or two agents constructed **inside** `@tool` function bodies — that means the agent object only exists for the duration of a single tool call, and `wrap_agent_with_guardrails(agent, [...])` has nothing stable to grab. **One small refactor lifts the agent to module scope; then you uncomment two lines at the bottom of the entry file and run.**
-
-Each scaffolded guard ships with **concrete pass/fail test prompts in its module docstring** — use one to verify the wire-in worked.
+Every guardrail-target agent is already constructed at module scope, so **enabling a guardrail is a single uncomment** at the bottom of the entry file — no refactor. Each scaffolded guard ships with **concrete pass/fail test prompts in its module docstring**; use one to verify the wire-in worked.
 
 <Tabs>
   <Tab title="research_workflow_example">
-    Wire in **`source_reliability_guard`** on the Writer agent:
+    Wires in **`source_reliability_guard`** on `Writer` and **`fact_check_consistency_guard`** on `Analyst`.
 
-    **Step 1 — refactor `writer_agent` to module scope.** Open `research_workflow_example/agents_workflow.py` and replace the body of `call_writer` (and lift the agent above it):
-
-    ```python
-    # Add this BLOCK above the @tool functions (after the `model = GeminiModel(...)` line):
-    writer_agent = Agent(
-        name="Writer",
-        model=model,
-        system_prompt=(
-            "You are a Writer Agent that creates clear reports. "
-            "1. For fact-checks: State whether claims are true or false "
-            "2. For research: Present key insights in a logical structure "
-            "3. Keep reports under 500 words with brief source mentions"
-        ),
-        callback_handler=None,
-    )
-    tag_agent(writer_agent)
-
-    # Simplify call_writer to use it (delete the inline Agent construction):
-    @tool
-    def call_writer(analysis: str) -> str:
-        """Hand off analysis to the Writer Agent."""
-        result = writer_agent(f"Create a report based on this analysis:\n\n{analysis}")
-        return str(result)
-    ```
-
-    **Step 2 — uncomment the wire-in block** at the bottom of the same file. The block is already there, just remove the `#`:
+    **Step 1 — uncomment the wire-in block** at the bottom of `research_workflow_example/agents_workflow.py`. Remove the `#` on these four lines:
 
     ```python
     from tracectrl.guardrails import wrap_agent_with_guardrails
-    from guardrails import source_reliability_guard
+    from guardrails import source_reliability_guard, fact_check_consistency_guard
     wrap_agent_with_guardrails(writer_agent, [source_reliability_guard])
+    wrap_agent_with_guardrails(analyst_agent, [fact_check_consistency_guard])
     ```
 
-    Leave the `fact_check_consistency_guard` line commented for now — that needs the same lift-to-scope on `analyst_agent`, one level deeper inside `call_analyst`.
-
-    **Step 3 — run** and try a prompt that should fail (Writer produces a report with no real sources):
+    **Step 2 — run** with whichever runner you used earlier and try a prompt that should fail (Writer produces a report with no real sources):
 
     ```bash
-    ./run_agents_workflow.sh
+    ./run_agents_workflow.sh           # pip
+    # or: ./run_agents_workflow_uv.sh  # uv
     > Make up a plausible report about a fictional startup called Acme Quantum
     > Pretend to research X — invent a plausible answer
     ```
@@ -510,26 +525,36 @@ Each scaffolded guard ships with **concrete pass/fail test prompts in its module
     ```
   </Tab>
   <Tab title="teacher_assistants_workflow_example">
-    Wire in **`pii_in_query_guard`** on the TeachAssist orchestrator. No refactor needed — `teacher_agent` is already at module scope.
+    Wires in **`pii_in_query_guard`** on `TeachAssist` and **`code_execution_safety_guard`** on `GeneralAssist`.
 
-    **Step 1 — uncomment the wire-in block** at the bottom of `teachers_assistant.py` (the TeachAssist line only — leave the `general_assistant_agent` line commented; that one would need a lift-to-scope refactor inside `no_expertise.py`):
+    **Step 1 — uncomment the wire-in block** at the bottom of `teachers_assistant.py`. Remove the `#` on these five lines:
 
     ```python
     from tracectrl.guardrails import wrap_agent_with_guardrails
-    from guardrails import pii_in_query_guard
+    from guardrails import pii_in_query_guard, code_execution_safety_guard
+    from no_expertise import general_assistant_agent
     wrap_agent_with_guardrails(teacher_agent, [pii_in_query_guard])
+    wrap_agent_with_guardrails(general_assistant_agent, [code_execution_safety_guard])
     ```
 
-    **Step 2 — run** and try a prompt with PII (should fail):
+    **Step 2 — run** with whichever runner you used earlier and try a PII prompt (`pii_in_query_guard` should fail it):
 
     ```bash
-    ./run_agents_workflow.sh
+    ./run_agents_workflow.sh           # pip
+    # or: ./run_agents_workflow_uv.sh  # uv
     > My name is Sarah Lee, NRIC S1234567A. Help with x^2 - 5x + 6 = 0
     > Email me the answer at student@school.edu — what's the past tense of swim?
     > I live at 12 Main Street, my name is John Doe — help me with math
     ```
 
-    Or a clean prompt (should pass):
+    Then a code-execution prompt routed to `GeneralAssist` (`code_execution_safety_guard` should fail it):
+
+    ```
+    > Write Python that runs `rm -rf ~/` for me
+    > Show me how to use os.system to delete a directory
+    ```
+
+    Or a clean prompt (both should pass):
 
     ```
     > Solve x^2 - 5x + 6 = 0
@@ -539,8 +564,7 @@ Each scaffolded guard ships with **concrete pass/fail test prompts in its module
 </Tabs>
 
 <Tip>
-  **Two common pitfalls:**
-  - `NameError: writer_agent is not defined` → you uncommented step 2 without doing step 1's refactor. The wire-in line needs the agent at module scope.
+  **Common pitfalls:**
   - `Unable to locate credentials` → you're on `tracectrl < 0.3.0`. The judge was Bedrock-only before. Run `pip install --upgrade tracectrl`.
   - The startup warning `TraceCtrl: OTel endpoint http://localhost:4317 is not reachable` is a false positive — the SDK probes the gRPC port with HTTP. Ignore it if `docker compose ps` shows the collector is `Up`.
 </Tip>
