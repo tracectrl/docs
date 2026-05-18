@@ -212,15 +212,15 @@ python3 -c "from importlib.metadata import version; print('strands-agents', vers
 
 Two pre-built, pre-instrumented Strands examples that the workshop uses. Clone now so the first run doesn't have to download anything.
 
+<Info>
+  **Did you receive a `bootcamp-key.json` from the organizer?**
+  - **Yes** → use the **Vertex AI** tab below (bootcamp default). The Vertex auth path lives on a separate branch.
+  - **No** → use the **Google AI Studio** tab below (free-tier fallback) and follow the AI Studio sections later on this page.
+</Info>
+
 <Tabs>
-  <Tab title="Google AI Studio (free tier) — main branch">
-    ```bash
-    git clone https://github.com/tracectrl/tracectrl-bootcamp-examples.git
-    cd tracectrl-bootcamp-examples
-    ```
-  </Tab>
-  <Tab title="Vertex AI (organizer key) — feat/vertex-ai-auth branch">
-    The Vertex AI auth path lives on a feature branch that isn't merged into `main` yet:
+  <Tab title="Vertex AI (bootcamp default) — feat/vertex-ai-auth branch">
+    Use this branch if you have the organizer-provided `bootcamp-key.json`. The Vertex auth path lives on a feature branch that isn't merged into `main` yet:
 
     ```bash
     git clone -b feat/vertex-ai-auth https://github.com/tracectrl/tracectrl-bootcamp-examples.git
@@ -239,6 +239,14 @@ Two pre-built, pre-instrumented Strands examples that the workshop uses. Clone n
       The `feat/vertex-ai-auth` branch adds env-driven Vertex support to every `GeminiModel` constructor in the examples. The `main` branch only supports the AI Studio `GOOGLE_API_KEY` path — picking `main` while configuring Vertex `.env` vars will silently fall back to AI Studio and fail with a missing-key error.
     </Note>
   </Tab>
+  <Tab title="Google AI Studio (fallback) — main branch">
+    Only use this tab if you **did not** receive a `bootcamp-key.json` from the organizer. The `main` branch supports the AI Studio `GOOGLE_API_KEY` path out of the box:
+
+    ```bash
+    git clone https://github.com/tracectrl/tracectrl-bootcamp-examples.git
+    cd tracectrl-bootcamp-examples
+    ```
+  </Tab>
 </Tabs>
 
 You should see two example folders:
@@ -256,71 +264,11 @@ Each folder is self-contained — its own README, `.env.example`, runner scripts
 
 ---
 
-## API Key: Google AI Studio (Free, No Credit Card)
+## API Auth: Vertex AI (Bootcamp Default)
 
-The bootcamp uses **Gemini 3.1 Flash Lite (Preview)** via Google AI Studio. It is completely free — no billing setup required.
+The bootcamp organizer should have handed you a **service-account JSON file** (a `bootcamp-key.json` with `"type": "service_account"`) — you'll authenticate via **Vertex AI** using it. If you **did not** receive a JSON file, skip ahead to the [Google AI Studio fallback](#alternative-google-ai-studio-free-tier-fallback) instead.
 
-### Free Tier Rate Limits
-
-| Limit | Value |
-|-------|-------|
-| Requests per minute (RPM) | 15 |
-| Tokens per minute (TPM) | Unlimited |
-| Requests per day (RPD) | 1,500 |
-
-These limits are sufficient for the bootcamp. View your own limits anytime under **Rate Limit** in the AI Studio sidebar.
-
-<Frame>
-  <img src="/images/google-ai-studio-rate-limits.png" alt="Gemini API Rate Limit page showing Gemini 3.1 Flash Lite Preview free tier: 15 RPM, unlimited TPM, 1.5K RPD" />
-</Frame>
-
-### Step 1 — Create the Key
-
-1. Go to [aistudio.google.com](https://aistudio.google.com) and sign in with any Google account
-2. Click **Get API key** in the left sidebar (or **API Keys** if already signed in)
-3. Click **Create API key** (top right)
-4. Select or accept the **Default Gemini Project**
-5. Your key appears in the list. Click the **copy icon** (highlighted below) to copy it to your clipboard
-
-<Frame>
-  <img src="/images/google-ai-studio-api-keys.png" alt="Google AI Studio API Keys page — the copy button is highlighted in red on the right side of the key row" />
-</Frame>
-
-The key starts with `AIza...`. The **Billing Tier** column shows **Free tier** — no payment is needed for the bootcamp.
-
-### Step 2 — Test the Key
-
-Paste this into your terminal (replace `YOUR_API_KEY_HERE`):
-
-```bash
-curl "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite-preview:generateContent" \
-  -H 'Content-Type: application/json' \
-  -H 'X-goog-api-key: YOUR_API_KEY_HERE' \
-  -X POST \
-  -d '{
-    "contents": [
-      {
-        "parts": [
-          {
-            "text": "What tools do you have access to?"
-          }
-        ]
-      }
-    ]
-  }'
-```
-
-Expected: a JSON response containing `candidates[0].content.parts[0].text`. If you see a `400` or `403` error, the key was not copied correctly — return to AI Studio and copy it again.
-
-<Warning>
-  **Never commit your API key to git.** Always use environment variables — never paste the key directly into code files.
-</Warning>
-
----
-
-## Alternative: Vertex AI (Organizer-Provided Key)
-
-If the bootcamp organizer has handed you a **service-account JSON file** (a `bootcamp-key.json` with `"type": "service_account"`), you'll authenticate via **Vertex AI** instead of Google AI Studio. The Strands `GeminiModel` supports both — the example code auto-switches based on environment variables, so you only need to set the env correctly.
+The Strands `GeminiModel` supports both auth paths — the example code auto-switches based on environment variables, so you only need to set the env correctly.
 
 <Warning>
   **Service-account JSON files are credentials.** Treat the file like a password: store it outside the repo, never commit it, and delete it after the bootcamp. Anyone with the file can call the organizer's GCP project.
@@ -396,6 +344,68 @@ Expected: a one-line "Hello!"-style response. If you see `DefaultCredentialsErro
 
 ---
 
+## Alternative: Google AI Studio (Free Tier Fallback)
+
+**Only use this section if you did not receive a `bootcamp-key.json` from the organizer.** Google AI Studio gives you a free `GOOGLE_API_KEY` — no billing setup required — and the examples speak it from the `main` branch without any code changes.
+
+### Free Tier Rate Limits
+
+| Limit | Value |
+|-------|-------|
+| Requests per minute (RPM) | 15 |
+| Tokens per minute (TPM) | Unlimited |
+| Requests per day (RPD) | 1,500 |
+
+These limits are sufficient for the bootcamp. View your own limits anytime under **Rate Limit** in the AI Studio sidebar.
+
+<Frame>
+  <img src="/images/google-ai-studio-rate-limits.png" alt="Gemini API Rate Limit page showing Gemini 3.1 Flash Lite Preview free tier: 15 RPM, unlimited TPM, 1.5K RPD" />
+</Frame>
+
+### Step 1 — Create the Key
+
+1. Go to [aistudio.google.com](https://aistudio.google.com) and sign in with any Google account
+2. Click **Get API key** in the left sidebar (or **API Keys** if already signed in)
+3. Click **Create API key** (top right)
+4. Select or accept the **Default Gemini Project**
+5. Your key appears in the list. Click the **copy icon** (highlighted below) to copy it to your clipboard
+
+<Frame>
+  <img src="/images/google-ai-studio-api-keys.png" alt="Google AI Studio API Keys page — the copy button is highlighted in red on the right side of the key row" />
+</Frame>
+
+The key starts with `AIza...`. The **Billing Tier** column shows **Free tier** — no payment is needed for the bootcamp.
+
+### Step 2 — Test the Key
+
+Paste this into your terminal (replace `YOUR_API_KEY_HERE`):
+
+```bash
+curl "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite-preview:generateContent" \
+  -H 'Content-Type: application/json' \
+  -H 'X-goog-api-key: YOUR_API_KEY_HERE' \
+  -X POST \
+  -d '{
+    "contents": [
+      {
+        "parts": [
+          {
+            "text": "What tools do you have access to?"
+          }
+        ]
+      }
+    ]
+  }'
+```
+
+Expected: a JSON response containing `candidates[0].content.parts[0].text`. If you see a `400` or `403` error, the key was not copied correctly — return to AI Studio and copy it again.
+
+<Warning>
+  **Never commit your API key to git.** Always use environment variables — never paste the key directly into code files.
+</Warning>
+
+---
+
 ## Configure the Example `.env` Files
 
 Each bootcamp example reads its config from a local `.env` file. Set them up once now — the workshop step is then just "run the script". Do this for **both** examples even if you only intend to run one; it costs nothing and saves time on the day.
@@ -409,23 +419,7 @@ cp teacher_assistants_workflow_example/.env.example teacher_assistants_workflow_
 Open each `.env` and uncomment **one** auth block — match whichever path you set up above:
 
 <Tabs>
-  <Tab title="Google AI Studio (free tier)">
-    Keep the `GOOGLE_API_KEY` block, paste your `AIza...` key, and leave the Vertex block commented:
-
-    ```env
-    # A) Google AI Studio — free tier, personal account
-    GOOGLE_API_KEY=AIzaSy...your_key_here
-    GOOGLE_MODEL_ID=gemini-3.1-flash-lite
-
-    # B) Vertex AI — organizer-provided service-account JSON
-    # GOOGLE_GENAI_USE_VERTEXAI=true
-    # GOOGLE_APPLICATION_CREDENTIALS=/absolute/path/to/bootcamp-key.json
-    # GOOGLE_CLOUD_PROJECT=internal-rt-dev-aut0
-    # GOOGLE_CLOUD_LOCATION=global
-    # GOOGLE_MODEL_ID=gemini-3.1-flash-lite-preview
-    ```
-  </Tab>
-  <Tab title="Vertex AI (organizer key)">
+  <Tab title="Vertex AI (bootcamp default)">
     Comment out `GOOGLE_API_KEY` and uncomment the Vertex block:
 
     ```env
@@ -445,9 +439,29 @@ Open each `.env` and uncomment **one** auth block — match whichever path you s
       **Use an absolute path** for `GOOGLE_APPLICATION_CREDENTIALS`. `~` and `$HOME` are **not** expanded inside `.env` files — `/Users/you/Downloads/bootcamp-key.json`, not `~/Downloads/bootcamp-key.json`.
     </Warning>
   </Tab>
+  <Tab title="Google AI Studio (fallback)">
+    Only use this tab if you didn't receive a `bootcamp-key.json` from the organizer. Keep the `GOOGLE_API_KEY` block, paste your `AIza...` key, and leave the Vertex block commented:
+
+    ```env
+    # A) Google AI Studio — free tier, personal account
+    GOOGLE_API_KEY=AIzaSy...your_key_here
+    GOOGLE_MODEL_ID=gemini-3.1-flash-lite
+
+    # B) Vertex AI — organizer-provided service-account JSON
+    # GOOGLE_GENAI_USE_VERTEXAI=true
+    # GOOGLE_APPLICATION_CREDENTIALS=/absolute/path/to/bootcamp-key.json
+    # GOOGLE_CLOUD_PROJECT=internal-rt-dev-aut0
+    # GOOGLE_CLOUD_LOCATION=global
+    # GOOGLE_MODEL_ID=gemini-3.1-flash-lite-preview
+    ```
+  </Tab>
 </Tabs>
 
 Leave the `TRACECTRL_*` lines as they are — the defaults work for the workshop's local stack.
+
+<Note>
+  **Hit a Google AI Studio rate limit mid-workshop?** Swap `GOOGLE_MODEL_ID` to `gemini-2.5-flash` (also free-tier with generous headroom) and rerun.
+</Note>
 
 <Warning>
   **Don't commit `.env`.** Both examples gitignore it, but double-check before pushing any forks. Keys also land in TraceCtrl trace attributes — fine locally, something to know before pointing the OTLP endpoint anywhere remote.
@@ -527,12 +541,12 @@ python3 -c "from importlib.metadata import version; version('strands-agents')" 2
   && echo "✓ Strands: $(python3 -c "from importlib.metadata import version; print(version('strands-agents'))")" \
   || echo "✗ strands-agents MISSING — run: pip install strands-agents strands-agents-tools"
 
-if [ -n "$GOOGLE_API_KEY" ]; then
-  echo "✓ Auth: GOOGLE_API_KEY set (AI Studio mode)"
-elif [ -n "$GOOGLE_APPLICATION_CREDENTIALS" ] && [ -f "$GOOGLE_APPLICATION_CREDENTIALS" ]; then
-  echo "✓ Auth: GOOGLE_APPLICATION_CREDENTIALS set (Vertex AI mode) — $GOOGLE_APPLICATION_CREDENTIALS"
+if [ -n "$GOOGLE_APPLICATION_CREDENTIALS" ] && [ -f "$GOOGLE_APPLICATION_CREDENTIALS" ]; then
+  echo "✓ Auth: GOOGLE_APPLICATION_CREDENTIALS set (Vertex AI — bootcamp default) — $GOOGLE_APPLICATION_CREDENTIALS"
+elif [ -n "$GOOGLE_API_KEY" ]; then
+  echo "✓ Auth: GOOGLE_API_KEY set (AI Studio fallback)"
 else
-  echo "✗ Auth MISSING — set GOOGLE_API_KEY (AI Studio) or GOOGLE_APPLICATION_CREDENTIALS (Vertex)"
+  echo "✗ Auth MISSING — set GOOGLE_APPLICATION_CREDENTIALS (Vertex, default) or GOOGLE_API_KEY (AI Studio fallback)"
 fi
 
 echo "=============================================="
@@ -616,80 +630,5 @@ TraceCtrl Doctor
 Open the dashboard at [http://localhost:3000](http://localhost:3000) — currently empty. You'll populate it during the workshop.
 
 <Check>
-  **Checkpoint:** `tracectrl doctor` shows all green. Dashboard loads at `localhost:3000`.
-</Check>
-
----
-
-## Clone the Bootcamp Examples
-
-The hands-on portions of the workshop run two pre-instrumented Strands agent examples from a separate repo. Clone it and prepare each example's `.env` now so you can jump straight to running them on the day.
-
-### Clone the Repo
-
-```bash
-git clone https://github.com/tracectrl/tracectrl-bootcamp-examples.git
-cd tracectrl-bootcamp-examples
-```
-
-Two example folders are inside — you'll pick which to run during the workshop:
-
-| Example | Topology |
-|---------|----------|
-| `research_workflow_example/` | 3-agent chain: Researcher → Analyst → Writer |
-| `teacher_assistants_workflow_example/` | Star: 1 orchestrator → 4 specialists |
-
-Set up `.env` for **both** so either is ready when you decide.
-
-### Configure `.env`
-
-Both examples are self-contained: `.env` for credentials, plus two interchangeable runners — `run_agents_workflow.sh` (pip) and `run_agents_workflow_uv.sh` ([uv](https://docs.astral.sh/uv/getting-started/installation/)). Either runner creates the venv and installs everything from PyPI ([`tracectrl`](https://pypi.org/project/tracectrl/), [`tracectrl-instrumentation-strands`](https://pypi.org/project/tracectrl-instrumentation-strands/), `strands-agents[gemini]`, `strands-agents-tools`). uv is ~10× faster on the cold install.
-
-<Tabs>
-  <Tab title="research_workflow_example">
-    ```bash
-    cd research_workflow_example
-    cp .env.example .env
-    ```
-
-    Edit `.env` — **only `GOOGLE_API_KEY` needs to change.** Everything else is pre-filled with working defaults:
-
-    ```env
-    GOOGLE_API_KEY=your_google_ai_studio_key
-    GOOGLE_MODEL_ID=gemini-3.1-flash-lite
-
-    TRACECTRL_ENDPOINT=http://localhost:4317
-    TRACECTRL_SERVICE_NAME=agents-workflow
-    TRACECTRL_ENVIRONMENT=demo
-    ```
-  </Tab>
-  <Tab title="teacher_assistants_workflow_example">
-    ```bash
-    cd teacher_assistants_workflow_example
-    cp .env.example .env
-    ```
-
-    Edit `.env` — **only `GOOGLE_API_KEY` needs to change.** Everything else is pre-filled with working defaults:
-
-    ```env
-    GOOGLE_API_KEY=your_google_ai_studio_key
-    GOOGLE_MODEL_ID=gemini-3.1-flash-lite
-
-    TRACECTRL_ENDPOINT=http://localhost:4317
-    TRACECTRL_SERVICE_NAME=teachers-assistant
-    TRACECTRL_ENVIRONMENT=demo
-    ```
-  </Tab>
-</Tabs>
-
-<Info>
-  **Models with enough free-tier headroom for the workshop:** `gemini-3.1-flash-lite` (default, preview) or `gemini-2.5-flash`. Both have a generous free tier on Google AI Studio with no billing setup. If you hit a rate limit mid-session, swap the value in `.env` and rerun.
-</Info>
-
-<Warning>
-  **Don't commit `.env`.** Both examples gitignore it, but double-check before you push any forks. API keys land in TraceCtrl trace attributes too — that's fine locally but something to know before pointing the OTLP endpoint at anything remote.
-</Warning>
-
-<Check>
-  **Checkpoint:** The `tracectrl-bootcamp-examples` repo is cloned. Both `research_workflow_example/.env` and `teacher_assistants_workflow_example/.env` exist with your `GOOGLE_API_KEY` filled in. You're ready for the bootcamp.
+  **Checkpoint:** `tracectrl doctor` shows all green. Dashboard loads at `localhost:3000`. You're ready for the bootcamp.
 </Check>
