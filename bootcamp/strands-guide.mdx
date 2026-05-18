@@ -50,96 +50,17 @@ TraceCtrl has five components:
 5. **Guardrails** ride the same pipe: in-SDK LLM judges (`tracectrl.guardrails`) and the external **Protector Plus** firewall (`tracectrl.protector`) both emit guardrail-evaluation spans that the engine surfaces as alerts.
 6. The **CLI Scanner** (`tracectrl scan`, `tracectrl fix`) is a separate path that statically analyses OpenClaw configs and uploads findings to the Engine.
 
----
-
-# Part 2: Start the TraceCtrl Stack
-
-## What You'll Have Running
-
-By the end of this section you will have:
-
-1. A running **TraceCtrl stack** (OTel Collector, ClickHouse, Engine, Dashboard)
-2. The **tracectrl CLI** installed in a Python virtual environment
-3. The Dashboard accessible at [http://localhost:3000](http://localhost:3000) — ready to receive spans from the Strands agent we'll build next
-
-## Clone and Install the CLI
-
-```bash
-git clone https://github.com/tracectrl/tracectrl.git
-cd tracectrl
-```
-
-<Tabs>
-  <Tab title="pip (Python 3.10+)">
-    ```bash
-    python3 -m venv .venv
-    source .venv/bin/activate
-
-    pip install tracectrl
-    ```
-  </Tab>
-  <Tab title="uv">
-    ```bash
-    uv venv
-    source .venv/bin/activate
-
-    uv pip install tracectrl
-    ```
-
-    Requires [uv](https://docs.astral.sh/uv/getting-started/installation/) on `PATH`.
-  </Tab>
-</Tabs>
-
-## Start the Stack
-
-```bash
-tracectrl setup
-```
-
-The interactive wizard starts the four Docker containers. Alternatively:
-
-```bash
-docker compose up -d
-```
-
-<Warning>
-  **Rancher Desktop users:** `tracectrl setup` detects Rancher automatically. If you're using the containerd engine, it uses `nerdctl compose` instead of `docker compose`.
-
-  **Memory:** Ensure your container runtime has at least 6 GB of memory allocated (Settings → Resources → Memory). ClickHouse is the heaviest container at 2–4 GB RAM.
-</Warning>
-
-## Verify the Stack
-
-```bash
-tracectrl doctor
-```
-
-Expected output:
-
-```
-TraceCtrl Doctor
-
-  Services:
-    [OK]   Engine API (http://localhost:8000/api/v1/health)
-    [OK]   Dashboard UI (http://localhost:3000)
-    [OK]   OTel Collector (http://localhost:4318/v1/traces)
-
-  All checks passed.
-```
-
-Open the dashboard at [http://localhost:3000](http://localhost:3000) — currently empty. We'll populate it in the next section.
-
-<Check>
-  **Checkpoint:** `tracectrl doctor` shows all green. Dashboard loads at `localhost:3000`.
-</Check>
+<Info>
+  **Stack not running yet?** The TraceCtrl stack must be up before Part 2 — install and start it with the [Set Up TraceCtrl](/bootcamp/prerequisites#set-up-tracectrl) section of the Prerequisites page, then run `tracectrl doctor` to confirm all services are green.
+</Info>
 
 ---
 
-# Part 3: FinFlow Demo (Strands Agent)
+# Part 2: FinFlow Demo (Strands Agent)
 
-## 3.1 Introduction
+## 2.1 Introduction
 
-Before we dig into the architecture and attack surface in text, watch the full demo end-to-end. The rest of Part 3 explains what you just saw in detail.
+Before we dig into the architecture and attack surface in text, watch the full demo end-to-end. The rest of Part 2 explains what you just saw in detail.
 
 <iframe
   className="w-full aspect-video rounded-xl"
@@ -174,12 +95,7 @@ Then we'll upload an invoice that looks identical to the human eye but carries a
 
 ### Pick an Example to Run
 
-FinFlow stays with the facilitator. For your hands-on portion, you'll run one (or both) of two pre-built examples from the bootcamp examples repo. Both are pre-instrumented, run on a free Google AI Studio key, and show a different topology shape so you can compare them side by side in the dashboard.
-
-```bash
-git clone https://github.com/tracectrl/tracectrl-bootcamp-examples.git
-cd tracectrl-bootcamp-examples
-```
+FinFlow stays with the facilitator. For your hands-on portion, you'll run one (or both) of two pre-built examples from the [bootcamp examples repo](https://github.com/tracectrl/tracectrl-bootcamp-examples) (you cloned this in the [Prerequisites](/bootcamp/prerequisites#5-bootcamp-examples-repo) step). Both are pre-instrumented and show a different topology shape so you can compare them side by side in the dashboard.
 
 | Example | Topology | What it does |
 |---------|----------|--------------|
@@ -187,55 +103,6 @@ cd tracectrl-bootcamp-examples
 | `teacher_assistants_workflow_example/` | Star: 1 orchestrator → 4 specialists | **TeachAssist** routes student queries to **MathWizard**, **EnglishMaster**, **LanguageAssistant**, or **GeneralAssist**. |
 
 Each example folder is self-contained — its own README, `.env`, runner script, and Python files. You'll see the rendered topology for each in [3.3 Compare the Topologies](#3-3-compare-the-topologies) after you run them.
-
-### Setup
-
-Both examples are self-contained: `.env` for credentials, plus two interchangeable runners — `run_agents_workflow.sh` (pip) and `run_agents_workflow_uv.sh` ([uv](https://docs.astral.sh/uv/getting-started/installation/)). Either one creates the venv and installs everything from PyPI ([`tracectrl`](https://pypi.org/project/tracectrl/), [`tracectrl-instrumentation-strands`](https://pypi.org/project/tracectrl-instrumentation-strands/), `strands-agents[gemini]`, `strands-agents-tools`). Pick whichever you have — uv is ~10× faster on the cold install.
-
-<Tabs>
-  <Tab title="research_workflow_example">
-    ```bash
-    cd research_workflow_example
-    cp .env.example .env
-    ```
-
-    Edit `.env` — **only `GOOGLE_API_KEY` needs to change.** Everything else is pre-filled with working defaults:
-
-    ```env
-    GOOGLE_API_KEY=your_google_ai_studio_key
-    GOOGLE_MODEL_ID=gemini-3.1-flash-lite
-
-    TRACECTRL_ENDPOINT=http://localhost:4317
-    TRACECTRL_SERVICE_NAME=agents-workflow
-    TRACECTRL_ENVIRONMENT=demo
-    ```
-  </Tab>
-  <Tab title="teacher_assistants_workflow_example">
-    ```bash
-    cd teacher_assistants_workflow_example
-    cp .env.example .env
-    ```
-
-    Edit `.env` — **only `GOOGLE_API_KEY` needs to change.** Everything else is pre-filled with working defaults:
-
-    ```env
-    GOOGLE_API_KEY=your_google_ai_studio_key
-    GOOGLE_MODEL_ID=gemini-3.1-flash-lite
-
-    TRACECTRL_ENDPOINT=http://localhost:4317
-    TRACECTRL_SERVICE_NAME=teachers-assistant
-    TRACECTRL_ENVIRONMENT=demo
-    ```
-  </Tab>
-</Tabs>
-
-<Info>
-  **Models with enough free-tier headroom for the workshop:** `gemini-3.1-flash-lite` (default, preview) or `gemini-2.5-flash`. Both have a generous free tier on Google AI Studio with no billing setup. If you hit a rate limit mid-session, swap the value in `.env` and rerun.
-</Info>
-
-<Warning>
-  **Don't commit `.env`.** Both examples gitignore it, but double-check before you push any forks. API keys land in TraceCtrl trace attributes too — that's fine locally but something to know before pointing the OTLP endpoint at anything remote.
-</Warning>
 
 ## 3.2 How to Trace
 
@@ -269,9 +136,13 @@ Three things to notice:
 
 1. **`StrandsInstrumentor().instrument()`** patches the Strands SDK so every agent invocation, LLM call, and tool call emits an OpenTelemetry span. No per-agent boilerplate.
 2. **`tag_agent(...)`** stamps the agent's name and role onto every span the agent emits (via the auto-installed `SystemPromptStamper`). The parent-child span tree exists either way — Strands wires that up — but without `tag_agent` the agent nodes in the topology graph come through with generic / inferred names instead of `Researcher` / `Analyst` / `TeachAssist`, which makes the topology much harder to read. In both examples, agents hand off to each other by calling a `@tool` function that creates a new `Agent` and calls `tag_agent()` on it — that's what produces the named `delegates` edges (`Researcher → Analyst → Writer`, `TeachAssist → MathWizard`, etc.).
-3. **OTLP gRPC on `:4317`.** This is the OpenTelemetry Collector that ships with the TraceCtrl stack from Part 2. The Engine reads from it, the Dashboard reads from the Engine.
+3. **OTLP gRPC on `:4317`.** This is the OpenTelemetry Collector that ships with the TraceCtrl stack you started during the [Prerequisites](/bootcamp/prerequisites#set-up-tracectrl). The Engine reads from it, the Dashboard reads from the Engine.
 
 ### Run the Example
+
+<Info>
+  **`.env` files should already be configured** from [Prerequisites → Configure the Example `.env` Files](/bootcamp/prerequisites#configure-the-example-env-files). If you skipped that, jump back — both examples need a populated `.env` to run. If you hit a Gemini rate limit mid-session, swap `GOOGLE_MODEL_ID` to `gemini-2.5-flash` and rerun.
+</Info>
 
 <Warning>
   **TraceCtrl must be running before you start the agents.** The script sends spans to the OTel Collector on `localhost:4317`. If TraceCtrl is not up, the agents will still run and produce output — but nothing will appear in the dashboard. Run `tracectrl doctor` to confirm all services are green before continuing.
@@ -401,7 +272,7 @@ The `TraceCtrlSpanProcessor` (inside the SDK) enriches every span with tool risk
   **Checkpoint:** Sessions page shows a trace with `invoke_agent` at the top, nested `execute_event_loop_cycle` / `chat` / `execute_tool` spans, and at least one `invoke_agent <Sub>` nested under an `execute_tool` (the agent hand-off). Span count is in the high single digits for the teacher example, mid-twenties for a multi-source research query.
 </Check>
 
-## 3.3 Compare the Topologies
+## 2.3 Compare the Topologies
 
 Open [http://localhost:3000/topology](http://localhost:3000/topology). Each example produces a distinct shape:
 
@@ -430,7 +301,7 @@ If you ran both, the topology accumulates — you'll see two disconnected sub-gr
   **Tool risk categories.** Every tool is classified into one of 8 categories (`network`, `code_execution`, `filesystem`, `data_store`, `web_browsing`, `communication`, `system`, `other`) based on its name and docstring. That classification is what drives the risk colouring on the topology nodes.
 </Tip>
 
-## 3.4 Add Guardrails with the TraceCtrl SDK
+## 2.4 Sample Developer Guardrails with the TraceCtrl SDK
 
 Traces and topology tell you **what your agents do**. Guardrails let you **decide whether to let an action happen** — every input or output runs through a `Guardrail` whose verdict is recorded as a span attribute and surfaced in the Guardrails dashboard.
 
@@ -489,7 +360,7 @@ Each example ships with a `guardrails/` subfolder (mirroring the FinFlow layout)
 <Note>
   **The judge uses the same Gemini model your agents are on.** Each scaffolded guardrail passes a `GeminiModel(...)` as `judge_llm` — no extra credentials to provision. Requires `tracectrl >= 0.3.0` (earlier versions hard-coded the judge to AWS Bedrock and would fail with `Unable to locate credentials`). Run `pip show tracectrl | grep Version` to confirm.
 
-  The Protector Plus path in Part 4 covers external LLM-firewall checks (PII, content moderation, prompt injection) where you DON'T want to roll your own judge.
+  The Protector Plus path in Part 3 covers external LLM-firewall checks (PII, content moderation, prompt injection) where you DON'T want to roll your own judge.
 </Note>
 
 ### Enable + Try It
@@ -581,9 +452,9 @@ Once a guardrail is wrapped, every invocation registers it under [http://localho
 
 ---
 
-# Part 4: GenAI Protector Plus
+# Part 3: Enterprise Guardrail Integration with GenAI Protector Plus
 
-The SDK guardrails in 3.4 are great for **app-specific** policy (payment caps, scope checks, custom rubrics). For **generic LLM-firewall protections** — prompt injection, PII, content moderation, system-prompt leakage, vector-similarity to known attacks — you don't want to roll your own. cloudsineAI's **GenAI Protector Plus** is exactly that: an external LLM firewall you point TraceCtrl at, and every agent input/output is screened by the same managed guardrails used across your whole org.
+The SDK guardrails in 2.4 are great for **app-specific** policy (payment caps, scope checks, custom rubrics). For **generic LLM-firewall protections** — prompt injection, PII, content moderation, system-prompt leakage, vector-similarity to known attacks — you don't want to roll your own. cloudsineAI's **GenAI Protector Plus** is exactly that: an external LLM firewall you point TraceCtrl at, and every agent input/output is screened by the same managed guardrails used across your whole org.
 
 The flow:
 
@@ -591,7 +462,7 @@ The flow:
 2. **In TraceCtrl Settings:** paste the Protector Plus endpoint + API key, tick which guardrails to enable.
 3. **Run your agents:** TraceCtrl's SDK now calls Protector Plus on every `check_input` / `check_output` — violations show up alongside your SDK guardrails on the same dashboard.
 
-## 4.1 Configure Guardrails in Protector Plus
+## 3.1 Configure Guardrails in Protector Plus
 
 In your Protector Plus instance (the cloudsineAI dashboard), enable the guardrails you want. The two we'll use for the FinFlow demo, in order of breadth:
 
@@ -612,7 +483,7 @@ After configuring, save and copy two values from the Protector Plus admin:
 - **Endpoint URL** (base URL, no trailing slash — e.g. `https://genaifw-sales.example.com`)
 - **API key** (domain-scoped, generated under the Protector Plus dashboard)
 
-## 4.2 Connect Protector Plus to TraceCtrl
+## 3.2 Connect Protector Plus to TraceCtrl
 
 In the TraceCtrl UI, go to **Settings → TraceCtrl Guards** ([http://localhost:3000/settings](http://localhost:3000/settings)).
 
@@ -628,9 +499,9 @@ Hit **Save**. The API key field redacts after save — re-enter the full key any
   **What gets called when.** Once enabled, every `check_input` and `check_output` from the TraceCtrl SDK hits Protector Plus for the ticked guardrails. The guardrails show up in TraceCtrl with `protector_plus.` prefixes (e.g. `protector_plus.keyword`, `protector_plus.llm`) so you can tell at a glance whether a violation came from an SDK-defined guard or from Protector Plus.
 </Info>
 
-## 4.3 Catch a Violation in Both Systems
+## 3.3 Catch a Violation in Both Systems
 
-Re-run FinFlow's malicious-PDF attack from the Part 3 demo. The keyword and LLM guardrails fire, and the **same violation now appears in two places** — once on the Protector Plus side as a firewall detection, once on the TraceCtrl side enriched with agent and trace context.
+Re-run FinFlow's malicious-PDF attack from the Part 2 demo. The keyword and LLM guardrails fire, and the **same violation now appears in two places** — once on the Protector Plus side as a firewall detection, once on the TraceCtrl side enriched with agent and trace context.
 
 ### Protector Plus → Alerts
 
