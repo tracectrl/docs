@@ -270,6 +270,84 @@ Expected: a JSON response containing `candidates[0].content.parts[0].text`. If y
 
 ---
 
+## Alternative: Vertex AI (Organizer-Provided Key)
+
+If the bootcamp organizer has handed you a **service-account JSON file** (a `bootcamp-key.json` with `"type": "service_account"`), you'll authenticate via **Vertex AI** instead of Google AI Studio. The Strands `GeminiModel` supports both — the example code auto-switches based on environment variables, so you only need to set the env correctly.
+
+<Warning>
+  **Service-account JSON files are credentials.** Treat the file like a password: store it outside the repo, never commit it, and delete it after the bootcamp. Anyone with the file can call the organizer's GCP project.
+</Warning>
+
+### Step 1 — Save the Key File
+
+Save the JSON the organizer gave you to a stable path (anywhere outside any git repo). Examples below assume `~/Downloads/bootcamp-key.json`.
+
+### Step 2 — Point the SDK at the File
+
+<Tabs>
+  <Tab title="macOS / Linux / WSL2">
+    ```bash
+    export GOOGLE_APPLICATION_CREDENTIALS="$HOME/Downloads/bootcamp-key.json"
+    ```
+
+    Add it to `~/.zshrc` or `~/.bashrc` if you want it to persist across terminals.
+  </Tab>
+  <Tab title="Windows (PowerShell)">
+    ```powershell
+    $env:GOOGLE_APPLICATION_CREDENTIALS="C:\Users\$env:USERNAME\Downloads\bootcamp-key.json"
+    ```
+  </Tab>
+  <Tab title="Windows (Command Prompt)">
+    ```bat
+    set GOOGLE_APPLICATION_CREDENTIALS=C:\Users\%USERNAME%\Downloads\bootcamp-key.json
+    ```
+  </Tab>
+</Tabs>
+
+### Step 3 — Configure the Bootcamp `.env`
+
+In each example directory, edit `.env` and **comment out** `GOOGLE_API_KEY`, then uncomment the Vertex block:
+
+```env
+# GOOGLE_API_KEY=...   ← leave this commented when using Vertex
+
+GOOGLE_GENAI_USE_VERTEXAI=true
+GOOGLE_APPLICATION_CREDENTIALS=/Users/you/Downloads/bootcamp-key.json
+GOOGLE_CLOUD_PROJECT=internal-rt-dev-aut0
+GOOGLE_CLOUD_LOCATION=global
+GOOGLE_MODEL_ID=gemini-3.1-flash-lite-preview
+```
+
+Replace `GOOGLE_CLOUD_PROJECT` with the `project_id` value from inside your JSON file if different. `gemini-3.1-flash-lite-preview` is the Vertex-flavoured model ID (AI Studio uses `gemini-3.1-flash-lite` without `-preview`).
+
+### Step 4 — Test the Key
+
+```bash
+pip install google-cloud-aiplatform
+```
+
+```python
+# vertex_smoke_test.py
+import vertexai
+from vertexai.generative_models import GenerativeModel
+
+vertexai.init(project="internal-rt-dev-aut0", location="global")
+model = GenerativeModel("gemini-3.1-flash-lite-preview")
+print(model.generate_content("Say hello!").text)
+```
+
+```bash
+python3 vertex_smoke_test.py
+```
+
+Expected: a one-line "Hello!"-style response. If you see `DefaultCredentialsError`, `GOOGLE_APPLICATION_CREDENTIALS` is unset or points at a wrong path. If you see `PERMISSION_DENIED`, the service account exists but isn't authorised on the project — flag it to the organizer.
+
+<Note>
+  **Why two SDKs?** `google-cloud-aiplatform` (above) is only used for this smoke test. The bootcamp examples themselves use `google-genai` via Strands' `GeminiModel`, which speaks Vertex when `GOOGLE_GENAI_USE_VERTEXAI=true` is set. Both ride the same auth.
+</Note>
+
+---
+
 ## Pull Docker Images Ahead of Time
 
 **Do this before the session.** The images total ~1.4 GB — venue WiFi may be slow.
@@ -307,7 +385,7 @@ make pull
 
 ## Full Verification
 
-Run this before the session. All five lines should show `✓`. The API key is not checked here — keep it in your password manager and load it into your shell during the workshop.
+Run this before the session. All six lines should show `✓`. The API key value itself is not checked — only that *one of* the two auth paths is configured in your shell.
 
 ```bash
 echo "=== TraceCtrl Bootcamp Prerequisites Check ==="
@@ -331,6 +409,14 @@ docker compose version >/dev/null 2>&1 \
 python3 -c "from importlib.metadata import version; version('strands-agents')" 2>/dev/null \
   && echo "✓ Strands: $(python3 -c "from importlib.metadata import version; print(version('strands-agents'))")" \
   || echo "✗ strands-agents MISSING — run: pip install strands-agents strands-agents-tools"
+
+if [ -n "$GOOGLE_API_KEY" ]; then
+  echo "✓ Auth: GOOGLE_API_KEY set (AI Studio mode)"
+elif [ -n "$GOOGLE_APPLICATION_CREDENTIALS" ] && [ -f "$GOOGLE_APPLICATION_CREDENTIALS" ]; then
+  echo "✓ Auth: GOOGLE_APPLICATION_CREDENTIALS set (Vertex AI mode) — $GOOGLE_APPLICATION_CREDENTIALS"
+else
+  echo "✗ Auth MISSING — set GOOGLE_API_KEY (AI Studio) or GOOGLE_APPLICATION_CREDENTIALS (Vertex)"
+fi
 
 echo "=============================================="
 ```
