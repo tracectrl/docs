@@ -174,12 +174,7 @@ Then we'll upload an invoice that looks identical to the human eye but carries a
 
 ### Pick an Example to Run
 
-FinFlow stays with the facilitator. For your hands-on portion, you'll run one (or both) of two pre-built examples from the bootcamp examples repo. Both are pre-instrumented, run on a free Google AI Studio key, and show a different topology shape so you can compare them side by side in the dashboard.
-
-```bash
-git clone https://github.com/tracectrl/tracectrl-bootcamp-examples.git
-cd tracectrl-bootcamp-examples
-```
+FinFlow stays with the facilitator. For your hands-on portion, you'll run one (or both) of two pre-built examples from the [bootcamp examples repo](https://github.com/tracectrl/tracectrl-bootcamp-examples) (you cloned this in the [Prerequisites](/bootcamp/prerequisites#5-bootcamp-examples-repo) step). Both are pre-instrumented and show a different topology shape so you can compare them side by side in the dashboard.
 
 | Example | Topology | What it does |
 |---------|----------|--------------|
@@ -187,55 +182,6 @@ cd tracectrl-bootcamp-examples
 | `teacher_assistants_workflow_example/` | Star: 1 orchestrator → 4 specialists | **TeachAssist** routes student queries to **MathWizard**, **EnglishMaster**, **LanguageAssistant**, or **GeneralAssist**. |
 
 Each example folder is self-contained — its own README, `.env`, runner script, and Python files. You'll see the rendered topology for each in [3.3 Compare the Topologies](#3-3-compare-the-topologies) after you run them.
-
-### Setup
-
-Both examples are self-contained: `.env` for credentials, plus two interchangeable runners — `run_agents_workflow.sh` (pip) and `run_agents_workflow_uv.sh` ([uv](https://docs.astral.sh/uv/getting-started/installation/)). Either one creates the venv and installs everything from PyPI ([`tracectrl`](https://pypi.org/project/tracectrl/), [`tracectrl-instrumentation-strands`](https://pypi.org/project/tracectrl-instrumentation-strands/), `strands-agents[gemini]`, `strands-agents-tools`). Pick whichever you have — uv is ~10× faster on the cold install.
-
-<Tabs>
-  <Tab title="research_workflow_example">
-    ```bash
-    cd research_workflow_example
-    cp .env.example .env
-    ```
-
-    Edit `.env` — **only `GOOGLE_API_KEY` needs to change.** Everything else is pre-filled with working defaults:
-
-    ```env
-    GOOGLE_API_KEY=your_google_ai_studio_key
-    GOOGLE_MODEL_ID=gemini-3.1-flash-lite
-
-    TRACECTRL_ENDPOINT=http://localhost:4317
-    TRACECTRL_SERVICE_NAME=agents-workflow
-    TRACECTRL_ENVIRONMENT=demo
-    ```
-  </Tab>
-  <Tab title="teacher_assistants_workflow_example">
-    ```bash
-    cd teacher_assistants_workflow_example
-    cp .env.example .env
-    ```
-
-    Edit `.env` — **only `GOOGLE_API_KEY` needs to change.** Everything else is pre-filled with working defaults:
-
-    ```env
-    GOOGLE_API_KEY=your_google_ai_studio_key
-    GOOGLE_MODEL_ID=gemini-3.1-flash-lite
-
-    TRACECTRL_ENDPOINT=http://localhost:4317
-    TRACECTRL_SERVICE_NAME=teachers-assistant
-    TRACECTRL_ENVIRONMENT=demo
-    ```
-  </Tab>
-</Tabs>
-
-<Info>
-  **Models with enough free-tier headroom for the workshop:** `gemini-3.1-flash-lite` (default, preview) or `gemini-2.5-flash`. Both have a generous free tier on Google AI Studio with no billing setup. If you hit a rate limit mid-session, swap the value in `.env` and rerun.
-</Info>
-
-<Warning>
-  **Don't commit `.env`.** Both examples gitignore it, but double-check before you push any forks. API keys land in TraceCtrl trace attributes too — that's fine locally but something to know before pointing the OTLP endpoint at anything remote.
-</Warning>
 
 ## 3.2 How to Trace
 
@@ -272,6 +218,10 @@ Three things to notice:
 3. **OTLP gRPC on `:4317`.** This is the OpenTelemetry Collector that ships with the TraceCtrl stack from Part 2. The Engine reads from it, the Dashboard reads from the Engine.
 
 ### Run the Example
+
+<Info>
+  **`.env` files should already be configured** from [Prerequisites → Configure the Example `.env` Files](/bootcamp/prerequisites#configure-the-example-env-files). If you skipped that, jump back — both examples need a populated `.env` to run. If you hit a Gemini rate limit mid-session, swap `GOOGLE_MODEL_ID` to `gemini-2.5-flash` and rerun.
+</Info>
 
 <Warning>
   **TraceCtrl must be running before you start the agents.** The script sends spans to the OTel Collector on `localhost:4317`. If TraceCtrl is not up, the agents will still run and produce output — but nothing will appear in the dashboard. Run `tracectrl doctor` to confirm all services are green before continuing.
