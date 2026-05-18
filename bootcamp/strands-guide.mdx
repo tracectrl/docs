@@ -95,20 +95,16 @@ Then we'll upload an invoice that looks identical to the human eye but carries a
 
 ### Pick an Example to Run
 
-FinFlow stays with the facilitator. For your hands-on portion, you'll run one (or both) of two pre-built examples from the bootcamp examples repo (cloned during the [Prerequisites](/bootcamp/prerequisites#clone-the-bootcamp-examples)). Both are pre-instrumented, run on a free Google AI Studio key, and show a different topology shape so you can compare them side by side in the dashboard.
+FinFlow stays with the facilitator. For your hands-on portion, you'll run one (or both) of two pre-built examples from the [bootcamp examples repo](https://github.com/tracectrl/tracectrl-bootcamp-examples) (you cloned this in the [Prerequisites](/bootcamp/prerequisites#5-bootcamp-examples-repo) step). Both are pre-instrumented and show a different topology shape so you can compare them side by side in the dashboard.
 
 | Example | Topology | What it does |
 |---------|----------|--------------|
 | `research_workflow_example/` | 3-agent chain: **Researcher → Analyst → Writer** | Web research / fact-checking. Researcher uses `http_request`, hands off via tool-call to Analyst, which hands off to Writer. |
 | `teacher_assistants_workflow_example/` | Star: 1 orchestrator → 4 specialists | **TeachAssist** routes student queries to **MathWizard**, **EnglishMaster**, **LanguageAssistant**, or **GeneralAssist**. |
 
-Each example folder is self-contained — its own README, `.env`, runner script, and Python files. You'll see the rendered topology for each in [2.3 Compare the Topologies](#2-3-compare-the-topologies) after you run them.
+Each example folder is self-contained — its own README, `.env`, runner script, and Python files. You'll see the rendered topology for each in [3.3 Compare the Topologies](#3-3-compare-the-topologies) after you run them.
 
-<Info>
-  **Before continuing,** confirm you've completed the prerequisite steps: `tracectrl-bootcamp-examples` cloned and `.env` filled in with your `GOOGLE_API_KEY` for at least one example. Jump back to [Clone the Bootcamp Examples](/bootcamp/prerequisites#clone-the-bootcamp-examples) if you skipped it.
-</Info>
-
-## 2.2 How to Trace
+## 3.2 How to Trace
 
 The instrumentation is **three lines plus one decorator** — identical across both examples. Open `agents_workflow.py` (research example) or `teachers_assistant.py` (teacher example) and look at the top:
 
@@ -143,6 +139,10 @@ Three things to notice:
 3. **OTLP gRPC on `:4317`.** This is the OpenTelemetry Collector that ships with the TraceCtrl stack you started during the [Prerequisites](/bootcamp/prerequisites#set-up-tracectrl). The Engine reads from it, the Dashboard reads from the Engine.
 
 ### Run the Example
+
+<Info>
+  **`.env` files should already be configured** from [Prerequisites → Configure the Example `.env` Files](/bootcamp/prerequisites#configure-the-example-env-files). If you skipped that, jump back — both examples need a populated `.env` to run. If you hit a Gemini rate limit mid-session, swap `GOOGLE_MODEL_ID` to `gemini-2.5-flash` and rerun.
+</Info>
 
 <Warning>
   **TraceCtrl must be running before you start the agents.** The script sends spans to the OTel Collector on `localhost:4317`. If TraceCtrl is not up, the agents will still run and produce output — but nothing will appear in the dashboard. Run `tracectrl doctor` to confirm all services are green before continuing.

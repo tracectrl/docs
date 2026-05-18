@@ -208,6 +208,54 @@ python3 -c "from importlib.metadata import version; print('strands-agents', vers
 
 ---
 
+### 5. Bootcamp Examples Repo
+
+Two pre-built, pre-instrumented Strands examples that the workshop uses. Clone now so the first run doesn't have to download anything.
+
+<Tabs>
+  <Tab title="Google AI Studio (free tier) — main branch">
+    ```bash
+    git clone https://github.com/tracectrl/tracectrl-bootcamp-examples.git
+    cd tracectrl-bootcamp-examples
+    ```
+  </Tab>
+  <Tab title="Vertex AI (organizer key) — feat/vertex-ai-auth branch">
+    The Vertex AI auth path lives on a feature branch that isn't merged into `main` yet:
+
+    ```bash
+    git clone -b feat/vertex-ai-auth https://github.com/tracectrl/tracectrl-bootcamp-examples.git
+    cd tracectrl-bootcamp-examples
+    ```
+
+    Or, if you already cloned `main`:
+
+    ```bash
+    cd tracectrl-bootcamp-examples
+    git fetch origin feat/vertex-ai-auth
+    git checkout feat/vertex-ai-auth
+    ```
+
+    <Note>
+      The `feat/vertex-ai-auth` branch adds env-driven Vertex support to every `GeminiModel` constructor in the examples. The `main` branch only supports the AI Studio `GOOGLE_API_KEY` path — picking `main` while configuring Vertex `.env` vars will silently fall back to AI Studio and fail with a missing-key error.
+    </Note>
+  </Tab>
+</Tabs>
+
+You should see two example folders:
+
+```bash
+ls
+# README.md  research_workflow_example  teacher_assistants_workflow_example
+```
+
+Each folder is self-contained — its own README, `.env.example`, runner scripts (`run_agents_workflow.sh` for pip, `run_agents_workflow_uv.sh` for [uv](https://docs.astral.sh/uv/getting-started/installation/)), and Python files. **Don't `cp .env.example .env` yet** — you'll do that during the workshop once you've decided which auth path you're using.
+
+<Note>
+  The first time you run a `run_*.sh` script, it creates a venv and installs `strands-agents[gemini]`, `strands-agents-tools`, `tracectrl`, and `tracectrl-instrumentation-strands` from PyPI. About a minute on pip, a few seconds on uv. **Run the script once before the session** to prime the venv — even if you don't have an API key yet, the install will succeed and only the final agent call will fail. That gets the slow part out of the way over your home WiFi.
+</Note>
+
+---
+
 ## API Key: Google AI Studio (Free, No Credit Card)
 
 The bootcamp uses **Gemini 3.1 Flash Lite (Preview)** via Google AI Studio. It is completely free — no billing setup required.
@@ -345,6 +393,75 @@ Expected: a one-line "Hello!"-style response. If you see `DefaultCredentialsErro
 <Note>
   **Why two SDKs?** `google-cloud-aiplatform` (above) is only used for this smoke test. The bootcamp examples themselves use `google-genai` via Strands' `GeminiModel`, which speaks Vertex when `GOOGLE_GENAI_USE_VERTEXAI=true` is set. Both ride the same auth.
 </Note>
+
+---
+
+## Configure the Example `.env` Files
+
+Each bootcamp example reads its config from a local `.env` file. Set them up once now — the workshop step is then just "run the script". Do this for **both** examples even if you only intend to run one; it costs nothing and saves time on the day.
+
+```bash
+cd tracectrl-bootcamp-examples
+cp research_workflow_example/.env.example research_workflow_example/.env
+cp teacher_assistants_workflow_example/.env.example teacher_assistants_workflow_example/.env
+```
+
+Open each `.env` and uncomment **one** auth block — match whichever path you set up above:
+
+<Tabs>
+  <Tab title="Google AI Studio (free tier)">
+    Keep the `GOOGLE_API_KEY` block, paste your `AIza...` key, and leave the Vertex block commented:
+
+    ```env
+    # A) Google AI Studio — free tier, personal account
+    GOOGLE_API_KEY=AIzaSy...your_key_here
+    GOOGLE_MODEL_ID=gemini-3.1-flash-lite
+
+    # B) Vertex AI — organizer-provided service-account JSON
+    # GOOGLE_GENAI_USE_VERTEXAI=true
+    # GOOGLE_APPLICATION_CREDENTIALS=/absolute/path/to/bootcamp-key.json
+    # GOOGLE_CLOUD_PROJECT=internal-rt-dev-aut0
+    # GOOGLE_CLOUD_LOCATION=global
+    # GOOGLE_MODEL_ID=gemini-3.1-flash-lite-preview
+    ```
+  </Tab>
+  <Tab title="Vertex AI (organizer key)">
+    Comment out `GOOGLE_API_KEY` and uncomment the Vertex block:
+
+    ```env
+    # A) Google AI Studio — free tier, personal account
+    # GOOGLE_API_KEY=...
+    # GOOGLE_MODEL_ID=gemini-3.1-flash-lite
+
+    # B) Vertex AI — organizer-provided service-account JSON
+    GOOGLE_GENAI_USE_VERTEXAI=true
+    GOOGLE_APPLICATION_CREDENTIALS=/Users/you/Downloads/bootcamp-key.json
+    GOOGLE_CLOUD_PROJECT=internal-rt-dev-aut0
+    GOOGLE_CLOUD_LOCATION=global
+    GOOGLE_MODEL_ID=gemini-3.1-flash-lite-preview
+    ```
+
+    <Warning>
+      **Use an absolute path** for `GOOGLE_APPLICATION_CREDENTIALS`. `~` and `$HOME` are **not** expanded inside `.env` files — `/Users/you/Downloads/bootcamp-key.json`, not `~/Downloads/bootcamp-key.json`.
+    </Warning>
+  </Tab>
+</Tabs>
+
+Leave the `TRACECTRL_*` lines as they are — the defaults work for the workshop's local stack.
+
+<Warning>
+  **Don't commit `.env`.** Both examples gitignore it, but double-check before pushing any forks. Keys also land in TraceCtrl trace attributes — fine locally, something to know before pointing the OTLP endpoint anywhere remote.
+</Warning>
+
+<Tip>
+  **Sanity check:** from inside one of the example folders, run the runner script — it will install dependencies on first run and then immediately try to call the model. If your `.env` is right, you'll get an interactive `>` prompt. If auth is wrong, it'll error within a second. Either is fine for pre-workshop — the install + venv creation is what you want done ahead of time.
+
+  ```bash
+  cd research_workflow_example
+  bash run_agents_workflow.sh        # pip path
+  # or: bash run_agents_workflow_uv.sh   # uv path
+  ```
+</Tip>
 
 ---
 
