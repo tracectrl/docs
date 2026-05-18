@@ -212,10 +212,34 @@ python3 -c "from importlib.metadata import version; print('strands-agents', vers
 
 Two pre-built, pre-instrumented Strands examples that the workshop uses. Clone now so the first run doesn't have to download anything.
 
-```bash
-git clone https://github.com/tracectrl/tracectrl-bootcamp-examples.git
-cd tracectrl-bootcamp-examples
-```
+<Tabs>
+  <Tab title="Google AI Studio (free tier) — main branch">
+    ```bash
+    git clone https://github.com/tracectrl/tracectrl-bootcamp-examples.git
+    cd tracectrl-bootcamp-examples
+    ```
+  </Tab>
+  <Tab title="Vertex AI (organizer key) — feat/vertex-ai-auth branch">
+    The Vertex AI auth path lives on a feature branch that isn't merged into `main` yet:
+
+    ```bash
+    git clone -b feat/vertex-ai-auth https://github.com/tracectrl/tracectrl-bootcamp-examples.git
+    cd tracectrl-bootcamp-examples
+    ```
+
+    Or, if you already cloned `main`:
+
+    ```bash
+    cd tracectrl-bootcamp-examples
+    git fetch origin feat/vertex-ai-auth
+    git checkout feat/vertex-ai-auth
+    ```
+
+    <Note>
+      The `feat/vertex-ai-auth` branch adds env-driven Vertex support to every `GeminiModel` constructor in the examples. The `main` branch only supports the AI Studio `GOOGLE_API_KEY` path — picking `main` while configuring Vertex `.env` vars will silently fall back to AI Studio and fail with a missing-key error.
+    </Note>
+  </Tab>
+</Tabs>
 
 You should see two example folders:
 
