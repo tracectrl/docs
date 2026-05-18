@@ -420,3 +420,159 @@ fi
 
 echo "=============================================="
 ```
+
+---
+
+## Set Up TraceCtrl
+
+With the prerequisites in place, install the TraceCtrl CLI and start the stack so it's ready to receive spans on day one of the bootcamp. By the end of this section you will have:
+
+1. A running **TraceCtrl stack** (OTel Collector, ClickHouse, Engine, Dashboard)
+2. The **tracectrl CLI** installed in a Python virtual environment
+3. The Dashboard accessible at [http://localhost:3000](http://localhost:3000) — ready to receive spans from the agents you'll build during the workshop
+
+### Clone and Install the CLI
+
+```bash
+git clone https://github.com/tracectrl/tracectrl.git
+cd tracectrl
+```
+
+<Tabs>
+  <Tab title="pip (Python 3.10+)">
+    ```bash
+    python3 -m venv .venv
+    source .venv/bin/activate
+
+    pip install tracectrl
+    ```
+  </Tab>
+  <Tab title="uv">
+    ```bash
+    uv venv
+    source .venv/bin/activate
+
+    uv pip install tracectrl
+    ```
+
+    Requires [uv](https://docs.astral.sh/uv/getting-started/installation/) on `PATH`.
+  </Tab>
+</Tabs>
+
+### Start the Stack
+
+```bash
+tracectrl setup
+```
+
+The interactive wizard starts the four Docker containers. Alternatively:
+
+```bash
+docker compose up -d
+```
+
+<Warning>
+  **Rancher Desktop users:** `tracectrl setup` detects Rancher automatically. If you're using the containerd engine, it uses `nerdctl compose` instead of `docker compose`.
+
+  **Memory:** Ensure your container runtime has at least 6 GB of memory allocated (Settings → Resources → Memory). ClickHouse is the heaviest container at 2–4 GB RAM.
+</Warning>
+
+### Verify the Stack
+
+```bash
+tracectrl doctor
+```
+
+Expected output:
+
+```
+TraceCtrl Doctor
+
+  Services:
+    [OK]   Engine API (http://localhost:8000/api/v1/health)
+    [OK]   Dashboard UI (http://localhost:3000)
+    [OK]   OTel Collector (http://localhost:4318/v1/traces)
+
+  All checks passed.
+```
+
+Open the dashboard at [http://localhost:3000](http://localhost:3000) — currently empty. You'll populate it during the workshop.
+
+<Check>
+  **Checkpoint:** `tracectrl doctor` shows all green. Dashboard loads at `localhost:3000`.
+</Check>
+
+---
+
+## Clone the Bootcamp Examples
+
+The hands-on portions of the workshop run two pre-instrumented Strands agent examples from a separate repo. Clone it and prepare each example's `.env` now so you can jump straight to running them on the day.
+
+### Clone the Repo
+
+```bash
+git clone https://github.com/tracectrl/tracectrl-bootcamp-examples.git
+cd tracectrl-bootcamp-examples
+```
+
+Two example folders are inside — you'll pick which to run during the workshop:
+
+| Example | Topology |
+|---------|----------|
+| `research_workflow_example/` | 3-agent chain: Researcher → Analyst → Writer |
+| `teacher_assistants_workflow_example/` | Star: 1 orchestrator → 4 specialists |
+
+Set up `.env` for **both** so either is ready when you decide.
+
+### Configure `.env`
+
+Both examples are self-contained: `.env` for credentials, plus two interchangeable runners — `run_agents_workflow.sh` (pip) and `run_agents_workflow_uv.sh` ([uv](https://docs.astral.sh/uv/getting-started/installation/)). Either runner creates the venv and installs everything from PyPI ([`tracectrl`](https://pypi.org/project/tracectrl/), [`tracectrl-instrumentation-strands`](https://pypi.org/project/tracectrl-instrumentation-strands/), `strands-agents[gemini]`, `strands-agents-tools`). uv is ~10× faster on the cold install.
+
+<Tabs>
+  <Tab title="research_workflow_example">
+    ```bash
+    cd research_workflow_example
+    cp .env.example .env
+    ```
+
+    Edit `.env` — **only `GOOGLE_API_KEY` needs to change.** Everything else is pre-filled with working defaults:
+
+    ```env
+    GOOGLE_API_KEY=your_google_ai_studio_key
+    GOOGLE_MODEL_ID=gemini-3.1-flash-lite
+
+    TRACECTRL_ENDPOINT=http://localhost:4317
+    TRACECTRL_SERVICE_NAME=agents-workflow
+    TRACECTRL_ENVIRONMENT=demo
+    ```
+  </Tab>
+  <Tab title="teacher_assistants_workflow_example">
+    ```bash
+    cd teacher_assistants_workflow_example
+    cp .env.example .env
+    ```
+
+    Edit `.env` — **only `GOOGLE_API_KEY` needs to change.** Everything else is pre-filled with working defaults:
+
+    ```env
+    GOOGLE_API_KEY=your_google_ai_studio_key
+    GOOGLE_MODEL_ID=gemini-3.1-flash-lite
+
+    TRACECTRL_ENDPOINT=http://localhost:4317
+    TRACECTRL_SERVICE_NAME=teachers-assistant
+    TRACECTRL_ENVIRONMENT=demo
+    ```
+  </Tab>
+</Tabs>
+
+<Info>
+  **Models with enough free-tier headroom for the workshop:** `gemini-3.1-flash-lite` (default, preview) or `gemini-2.5-flash`. Both have a generous free tier on Google AI Studio with no billing setup. If you hit a rate limit mid-session, swap the value in `.env` and rerun.
+</Info>
+
+<Warning>
+  **Don't commit `.env`.** Both examples gitignore it, but double-check before you push any forks. API keys land in TraceCtrl trace attributes too — that's fine locally but something to know before pointing the OTLP endpoint at anything remote.
+</Warning>
+
+<Check>
+  **Checkpoint:** The `tracectrl-bootcamp-examples` repo is cloned. Both `research_workflow_example/.env` and `teacher_assistants_workflow_example/.env` exist with your `GOOGLE_API_KEY` filled in. You're ready for the bootcamp.
+</Check>
